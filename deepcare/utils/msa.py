@@ -15,12 +15,16 @@ nuc_to_class = {
     "T": torch.tensor([3], dtype=torch.float32)
 }
 
-def make_examples_from_file(msa_file, reference_fastq_file, image_height, image_width):
+def make_examples_from_file(msa_file, reference_fastq_file, image_height, image_width, number_examples=None):
     """
     Takes in the path of a text file encoding MSAs.
     Returns a generator with the output (MSA, label)
     """
     
+    msas = []
+    labels = []
+    i = 0
+
     # open a fastq reader to generate a list of all reference reads
     print("Starting to read the reference fastq file...")
     with fastq.FastqReader(reference_fastq_file) as reader:
@@ -36,6 +40,9 @@ def make_examples_from_file(msa_file, reference_fastq_file, image_height, image_
 
     while reading:
         
+        if i == number_examples:
+            break
+
         # continue reading until the last header of an msa
         if header_line_number >= len(lines):
             reading = False 
@@ -60,7 +67,12 @@ def make_examples_from_file(msa_file, reference_fastq_file, image_height, image_
         
         header_line_number += number_rows + 1
 
-        yield cropped_msa, middle_base
+        msas.append(cropped_msa)
+        labels.append(middle_base)
+
+        i += 1
+    
+    return torch.stack(msas), torch.stack(labels)
 
 
 def create_msa(msa_lines, number_rows, number_columns):
