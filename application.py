@@ -7,6 +7,7 @@ from deepcare.utils import msa
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
 
 class Net(nn.Module):
 
@@ -47,27 +48,74 @@ fastq_file = os.path.join(fastq_file_path, fastq_file_name)
 
 
 if __name__ == "__main__":
+
+    # Set device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print("Avalable device: ", device)
     
-    msas, labels = msa.make_examples_from_file(
-        msa_file=os.path.join(msa_data_path, msa_file_name+"1"),
-        reference_fastq_file=fastq_file,
+    # Hyperparameters
+    in_channel = 3
+    num_classes = 2
+    learning_rate = 1e-3
+    batch_size = 10
+    num_epochs = 10
+
+    # Load the data
+    dataset = msa.MSADataset(
+        msa_file_path=os.path.join(msa_data_path, msa_file_name+"1"),
+        ref_fastq_path=fastq_file,
         image_height=50,
         image_width=25,
-        number_examples=3
+        number_examples=1000
     )
-    print("Done creating the generator...")
+    print("Done generating the Dataset")
 
+    # Create dataloaders
+    train_set, test_set = torch.utils.data.random_split(dataset, [800, 200])
+    train_loader = DataLoader(dataset=train_set, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(dataset=test_set, batch_size=batch_size, shuffle=False)
+
+    # Model
     net = Net()
     print(net)
-
-    target = torch.randn(4)  # a dummy target, for example
-    target = target.view(1, -1)  # make it the same shape as output
-    criterion = nn.MSELoss()
-
     
-    for msa in msas:
-        output = net(msa.unsqueeze_(0))
-        print(output)
-        loss = criterion(output, target)
-        print(loss)
-        break
+    # Loss and optimizer
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    
+    # Train Network
+    for epoch in range(num_epochs):
+
+        running_loss = 0.0
+        for i, (data, targets) in enumerate(train_loader):
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # forward + backward + optimize
+            outputs = net(data)
+            print("outputs: ", outputs)
+            print("targets: ", targets)
+            loss = criterion(outputs, targets)
+            print("loss: ", loss)
+            loss.backward()
+            optimizer.step()
+
+            # print statistics
+            running_loss += loss.item()
+            if  i % 10 == 9:
+                print("outputs: ", outputs)
+                print("targets: ", targets)
+                print("loss: ", loss)
+                print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 2000))
+                running_loss = 0.0
+         
+    print('Finished Training')
+
+    # relic:
+    #for msa, label in zip(msas, labels):
+    #    output = net(msa.unsqueeze_(0))
+    #    print(output)
+    #    loss = criterion(output, label.unsqueeze_(0))
+    #    print(loss)
+    #    break
