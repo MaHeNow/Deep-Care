@@ -9,7 +9,6 @@ from nucleus.io import fastq
 
 from torch.utils.data import Dataset
 
-nuc_to_channel = {"A": 0, "C": 1, "G": 2, "T": 3}
 nuc_to_index = {
     "A": 0,
     "C": 1,
@@ -171,7 +170,7 @@ def create_msa(msa_lines, number_rows, number_columns):
         column_index, sequence = line.split(" ")
         column_index = int(column_index)
         for j, nucleotide in enumerate(sequence):
-            msa[nuc_to_channel[nucleotide], i, column_index+j] = 1
+            msa[nuc_to_index[nucleotide], i, column_index+j] = 1
 
     return msa
 
@@ -203,11 +202,11 @@ def get_middle_base(sequence):
     return nuc_to_index[sequence[len(sequence)//2]]
 
 
-def save_msa_as_image(msa, name):
-    print("Image msa shape: ", msa.shape)
-    msa_image = msa_to_image(msa)
-    im = Image.fromarray(msa_image)
-    im.save(name)
+def save_msa_as_image(msa, name, root_dir, human_readable=False):
+    if human_readable:
+        msa = msa_to_image(msa)
+    im = Image.fromarray(msa)
+    im.save(os.path.join(root_dir, name))
 
 
 def msa_to_image(msa):
