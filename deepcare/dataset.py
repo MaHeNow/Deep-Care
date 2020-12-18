@@ -54,10 +54,10 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
 
         while reading:
 
+            # Termination conditions for inner loop
             if max_num_examples_reached:
                 break
 
-            # Termination conditions for inner loop
             if header_line_number >= len(lines):
                 reading = False
                 continue
@@ -66,6 +66,7 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
                     min([len(val) for key, val in examples.items()]),
                     min([len(val) for key, val in erroneous_examples.items()])
                 )
+
             if verbose:
                 print(f"{max_possible_examples*(2*len(examples.keys()))} out of {max_number_examples} created.")
 
@@ -73,7 +74,6 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
                 reading = False
                 continue
 
-        
             # Get relavant information of the MSA from one of many heades in the
             # file encoding the MSAs
             number_rows, number_columns, anchor_in_msa, anchor_in_file = [int(i) for i in lines[header_line_number].split(" ")]
@@ -90,21 +90,24 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
             # Create a pytorch tensor encoding the msa from the text file
             msa = create_msa(msa_lines, number_rows, number_columns)
 
-            # Look for errors
+            # Go over entire anchor sequence and compare it with the reference
             for i, (b, rb) in enumerate(zip(anchor_sequence, reference)):
  
-                center_index = i + int(anchor_column_index)
+                center_index = i + int(anchor_column_index)+1
 
                 max_possible_examples = min(
                     min([len(val) for key, val in examples.items()]),
                     min([len(val) for key, val in erroneous_examples.items()])
                 )
 
+                # Final termination condition for the inner loop
                 if max_possible_examples == max_number_examples //(2*len(examples.keys())):
                     reading = False
                     max_num_examples_reached = True
                     break
                 
+                # Add no more examples to a group of bases if we have enough examples
+                # for that specific base
                 if b == rb:
                     if len(examples[rb]) >= max_number_examples//(2*len(examples.keys())):
                         continue
@@ -112,9 +115,12 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
                     if len(erroneous_examples[rb]) >= max_number_examples//(2*len(erroneous_examples.keys())):
                         continue
 
+                # Crop the MSA round the currently centered base
                 cropped_msa = crop_msa(msa, image_width, image_height, center_index, anchor_in_msa)
                 label = rb
 
+                # Decide whether to add the example to the list of erroneus or
+                # correct examples
                 if b == rb:
                     examples[label].append(cropped_msa)
                 else:
@@ -127,12 +133,6 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
 
     # After all examples are generated, save the images to a folder and create a
     # training csv file
-
-    # We want an equal number of all labels for erroneus and non-erroneus examples
-    max_possible_examples = min(
-            min([len(val) for key, val in examples.items()]),
-            min([len(val) for key, val in erroneous_examples.items()])
-        )
 
     # Prepare the dataframe which will be exported as a csv for indexing
     train_df = pd.DataFrame(columns=["img_name","label"])
@@ -148,7 +148,7 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
 
     # Save all MSAs of the example list and add the filename and label to the csv
     for label, msas in examples.items():
-        for i, msa in enumerate(msas[:max_possible_examples]):
+        for i, msa in enumerate(msas):
             file_name = label + "_" + str(i) + ".png"
             save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
             names.append(file_name)
@@ -156,7 +156,7 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
 
     # Do the same for the erroneus examples
     for label, msas in erroneous_examples.items():
-        for i, msa in enumerate(msas[:max_possible_examples]):
+        for i, msa in enumerate(msas):
             file_name = label + "_err_" + str(i) + ".png"
             save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
             names.append(file_name)
@@ -172,6 +172,9 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
         print("Done")
 
 
+
+
+
 if __name__ == "__main__":
     import glob
 
@@ -184,13 +187,15 @@ if __name__ == "__main__":
     fastq_file_name = "humanchr1430cov_errFree.fq.gz"
     fastq_file = os.path.join(fastq_file_path, fastq_file_name)
 
+    folder_name = "datasets/center_base_dataset_11_100_human_readable"
+
     generate_center_base_train_images(
             msa_file_paths=msa_file_paths,
             ref_fastq_file_path=fastq_file,
             image_height=100,
             image_width=11,
-            out_dir="center_base_dataset_11_100",
-            max_number_examples=4000,
+            out_dir=folder_name,
+            max_number_examples=8,
             human_readable=True,
             verbose=True
         )
