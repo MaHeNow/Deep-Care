@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     device = ("cuda" if torch.cuda.is_available() else "cpu")
 
-    num_epochs = 50
+    num_epochs = 100 
     learning_rate = 0.00001
     train_CNN = False
     batch_size = 32
@@ -80,14 +80,14 @@ if __name__ == "__main__":
         )
 
     dataset = MSADataset(
-        root_dir="datasets/center_base_dataset_w11_h100_n800_human_readable",
-        annotation_file="datasets/center_base_dataset_w11_h100_n800_human_readable/train_labels.csv",
+        root_dir="datasets/center_base_dataset_11_100_human_readable",
+        annotation_file="datasets/center_base_dataset_11_100_human_readable/train_labels.csv",
         transform=transform
         )
 
     print(dataset.__len__())
 
-    train_set, validation_set = torch.utils.data.random_split(dataset,[600,200])
+    train_set, validation_set = torch.utils.data.random_split(dataset,[20000,4000])
     train_loader = DataLoader(dataset=train_set, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers,pin_memory=pin_memory)
     validation_loader = DataLoader(dataset=validation_set, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers, pin_memory=pin_memory)
 
