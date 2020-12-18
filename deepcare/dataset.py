@@ -39,12 +39,12 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
     # Loop over all given files
     for path in msa_file_paths:
 
-        print("Now reading file: ", path)
-
         # Termination condition of outer loop
         if max_num_examples_reached:
             break
 
+        print("Now reading file: ", path)
+        
         # Open the file and get its lines
         file_ = open(path, "r")
         lines = [line.replace('\n', '') for line in file_]
@@ -67,7 +67,7 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
                     min([len(val) for key, val in erroneous_examples.items()])
                 )
             if verbose:
-                print(f"{max_possible_examples} out of {max_number_examples} created.")
+                print(f"{max_possible_examples*(2*len(examples.keys()))} out of {max_number_examples} created.")
 
             if max_possible_examples == max_number_examples //(2*len(examples.keys())):
                 reading = False
@@ -122,6 +122,9 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
 
             header_line_number += number_rows + 1
             
+    if verbose:
+        print("Done creating examples.")
+
     # After all examples are generated, save the images to a folder and create a
     # training csv file
 
@@ -139,6 +142,9 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
     # Create the output folder for the datset
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
+
+    if verbose:
+        print("Saving examples... ", end="")
 
     # Save all MSAs of the example list and add the filename and label to the csv
     for label, msas in examples.items():
@@ -162,6 +168,9 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
     # Save the csv        
     train_df.to_csv (os.path.join(out_dir, "train_labels.csv"), index = False, header=True)
 
+    if verbose:
+        print("Done")
+
 
 if __name__ == "__main__":
     import glob
@@ -180,7 +189,8 @@ if __name__ == "__main__":
             ref_fastq_file_path=fastq_file,
             image_height=100,
             image_width=11,
-            out_dir="center_base_dataset_25_50",
-            max_number_examples=10,
-            human_readable=True
+            out_dir="center_base_dataset_11_100",
+            max_number_examples=4000,
+            human_readable=True,
+            verbose=True
         )
