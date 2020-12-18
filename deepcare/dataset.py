@@ -187,7 +187,7 @@ class MSADataset(Dataset):
     def __getitem__(self, index):
         img_id = self.annotations.iloc[index, 0]
         img = Image.open(os.path.join(self.root_dir, img_id))
-        y_label = torch.tensor(float(self.annotations.iloc[index, 1]))
+        y_label = torch.tensor(int(self.annotations.iloc[index, 1]), dtype=torch.long)
 
         if self.transform is not None:
             img = self.transform(img)
