@@ -7,7 +7,8 @@ import pandas as pd
 
 from utils.msa import create_msa, crop_msa, get_middle_base, nuc_to_index, save_msa_as_image
 
-def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image_height, image_width, out_dir, max_number_examples):
+
+def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image_height, image_width, out_dir, max_number_examples, human_readable=False):
     
     number_examples = 0
 
@@ -135,7 +136,7 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
     for label, msas in examples.items():
         for i, msa in enumerate(msas[:max_possible_examples]):
             file_name = label + "_" + str(i) + ".png"
-            save_msa_as_image(msa, file_name, out_dir)
+            save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
             names.append(file_name)
             labels.append(nuc_to_index[label])
 
@@ -143,7 +144,7 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
     for label, msas in erroneous_examples.items():
         for i, msa in enumerate(msas[:max_possible_examples]):
             file_name = label + "_err_" + str(i) + ".png"
-            save_msa_as_image(msa, file_name, out_dir)
+            save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
             names.append(file_name)
             labels.append(nuc_to_index[label])
 
@@ -152,6 +153,7 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
 
     # Save the csv        
     train_df.to_csv (os.path.join(out_dir, "train_labels.csv"), index = False, header=True)
+
 
 if __name__ == "__main__":
     import glob
@@ -171,5 +173,6 @@ if __name__ == "__main__":
             image_height=50,
             image_width=25,
             out_dir="center_base_dataset_25_50",
-            max_number_examples=10
+            max_number_examples=10,
+            human_readable=True
         )
