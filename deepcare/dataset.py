@@ -85,8 +85,10 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
             msa = create_msa(msa_lines, number_rows, number_columns)
 
             # Look for errors
-            for center_index, (b, rb) in enumerate(zip(anchor_sequence, reference)):
+            for i, (b, rb) in enumerate(zip(anchor_sequence, reference)):
  
+                center_index = i + int(anchor_column_index)
+
                 max_possible_examples = min(
                     min([len(val) for key, val in examples.items()]),
                     min([len(val) for key, val in erroneous_examples.items()])
@@ -170,8 +172,8 @@ if __name__ == "__main__":
     generate_center_base_train_images(
             msa_file_paths=msa_file_paths,
             ref_fastq_file_path=fastq_file,
-            image_height=50,
-            image_width=25,
+            image_height=100,
+            image_width=11,
             out_dir="center_base_dataset_25_50",
             max_number_examples=10,
             human_readable=True
