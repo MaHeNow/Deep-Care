@@ -2,6 +2,7 @@ import os
 import random
 
 import torch
+from torch.utils.data import Dataset
 from nucleus.io import fastq
 import pandas as pd
 from PIL import Image
@@ -208,7 +209,7 @@ if __name__ == "__main__":
     fastq_file_name = "humanchr1430cov_errFree.fq.gz"
     fastq_file = os.path.join(fastq_file_path, fastq_file_name)
 
-    folder_name = "datasets/center_base_dataset_11_100_human_readable"
+    folder_name = "datasets/center_base_dataset_w11_h100_n800_human_readable"
 
     generate_center_base_train_images(
             msa_file_paths=msa_file_paths,
@@ -216,7 +217,7 @@ if __name__ == "__main__":
             image_height=100,
             image_width=11,
             out_dir=folder_name,
-            max_number_examples=8,
+            max_number_examples=800,
             human_readable=True,
             verbose=True
         )
