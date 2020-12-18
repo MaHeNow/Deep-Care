@@ -47,8 +47,8 @@ def check_accuracy(loader, model):
     
     with torch.no_grad():
         for x, y in loader:
-            #x = x.to(device=device)
-            #y = y.to(device=device)
+            x = x.to(device=device)
+            y = y.to(device=device)
             
             scores = model(x)
             _, predictions = scores.max(1)
@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     device = ("cuda" if torch.cuda.is_available() else "cpu")
 
-    num_epochs = 10
+    num_epochs = 50
     learning_rate = 0.00001
     train_CNN = False
     batch_size = 32
@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
     # Model
     model = Net()
-    #model.to(device)
+    model.to(device)
 
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss() 
@@ -105,8 +105,8 @@ if __name__ == "__main__":
         
         for batch_idx, (data, targets) in enumerate(train_loader):
             # Get data to cuda if possible
-            #data = data.to(device=device)
-            #targets = targets.to(device=device)
+            data = data.to(device=device)
+            targets = targets.to(device=device)
             
             # forward
             scores = model(data)
