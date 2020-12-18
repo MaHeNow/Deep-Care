@@ -8,7 +8,7 @@ import pandas as pd
 from utils.msa import create_msa, crop_msa, get_middle_base, nuc_to_index, save_msa_as_image
 
 
-def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image_height, image_width, out_dir, max_number_examples, human_readable=False):
+def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image_height, image_width, out_dir, max_number_examples, human_readable=False, verbose=False):
     
     number_examples = 0
 
@@ -27,8 +27,12 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
     }
 
     # Get the reference reads for the MSAs
+    if verbose:
+        print("Reading the reference file... ", end="")
     with fastq.FastqReader(ref_fastq_file_path) as reader:
         ref_reads = [read for read in reader]
+    if verbose:
+        print("Done")
 
     max_num_examples_reached = False
 
@@ -62,6 +66,8 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
                     min([len(val) for key, val in examples.items()]),
                     min([len(val) for key, val in erroneous_examples.items()])
                 )
+            if verbose:
+                print(f"{max_possible_examples} out of {max_number_examples} created.")
 
             if max_possible_examples == max_number_examples //(2*len(examples.keys())):
                 reading = False
