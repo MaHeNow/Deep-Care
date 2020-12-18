@@ -4,6 +4,7 @@ import random
 import torch
 from nucleus.io import fastq
 import pandas as pd
+from PIL import Image
 
 from utils.msa import create_msa, crop_msa, get_middle_base, nuc_to_index, save_msa_as_image
 
@@ -172,9 +173,29 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
         print("Done")
 
 
+class MSADataset(Dataset):
+
+    def __init__(self, root_dir, annotation_file, transform=None):
+        self.root_dir = root_dir
+        self.annotations = pd.read_csv(annotation_file)
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.annotations)
+
+    def __getitem__(self, index):
+        img_id = self.annotations.iloc[index, 0]
+        img = Image.open(os.path.join(self.root_dir, img_id))
+        y_label = torch.tensor(float(self.annotations.iloc[index, 1]))
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        return (img, y_label)
 
 
-
+# Examples usage:
+"""
 if __name__ == "__main__":
     import glob
 
@@ -199,3 +220,4 @@ if __name__ == "__main__":
             human_readable=True,
             verbose=True
         )
+"""
