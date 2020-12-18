@@ -34,6 +34,8 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
     # Loop over all given files
     for path in msa_file_paths:
 
+        print("Now reading file: ", path)
+
         # Termination condition of outer loop
         if max_num_examples_reached:
             break
@@ -47,6 +49,9 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
 
         while reading:
 
+            if max_num_examples_reached:
+                break
+
             # Termination conditions for inner loop
             if header_line_number >= len(lines):
                 reading = False
@@ -57,10 +62,10 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
                     min([len(val) for key, val in erroneous_examples.items()])
                 )
 
-            if max_possible_examples/(2*len(examples.keys())) == max_number_examples:
+            if max_possible_examples == max_number_examples //(2*len(examples.keys())):
                 reading = False
-                max_num_examples_reached = True
                 continue
+
         
             # Get relavant information of the MSA from one of many heades in the
             # file encoding the MSAs
@@ -74,37 +79,37 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
 
             # Get the reference sequence
             reference = ref_reads[anchor_in_file].sequence
-
-            # Look for errors
-            error_indicies = [i for i, (b, rb) in enumerate(zip(anchor_sequence, reference)) if b != rb]
-            erroneous = False
-
-            # If the anchor read is error-free, just center around the middle of it
-            if len(error_indicies) == 0:
-                center_index = int(anchor_column_index) + len(anchor_sequence)/2
-
-                # Create a pytorch tensor encoding the msa from the text file
-                msa = create_msa(msa_lines, number_rows, number_columns)
-                cropped_msa = crop_msa(msa, image_width, image_height, center_index, anchor_in_msa)
-
-                label = reference[center_index]
-                examples[label].append(cropped_msa)
-
-            # Otherwise center around a random error base
-            else:
-                center_index = random.choice(error_indicies)
-                erroneous = True
-
+            
             # Create a pytorch tensor encoding the msa from the text file
             msa = create_msa(msa_lines, number_rows, number_columns)
-            cropped_msa = crop_msa(msa, image_width, image_height, center_index, anchor_in_msa)
 
-            label = reference[center_index]
+            # Look for errors
+            for center_index, (b, rb) in enumerate(zip(anchor_sequence, reference)):
+ 
+                max_possible_examples = min(
+                    min([len(val) for key, val in examples.items()]),
+                    min([len(val) for key, val in erroneous_examples.items()])
+                )
 
-            if erroneous:
-                erroneous_examples[label].append(cropped_msa)
-            else:
-                examples[label].append(cropped_msa)
+                if max_possible_examples == max_number_examples //(2*len(examples.keys())):
+                    reading = False
+                    max_num_examples_reached = True
+                    break
+                
+                if b == rb:
+                    if len(examples[rb]) >= max_number_examples//(2*len(examples.keys())):
+                        continue
+                else:
+                    if len(erroneous_examples[rb]) >= max_number_examples//(2*len(erroneous_examples.keys())):
+                        continue
+
+                cropped_msa = crop_msa(msa, image_width, image_height, center_index, anchor_in_msa)
+                label = rb
+
+                if b == rb:
+                    examples[label].append(cropped_msa)
+                else:
+                    erroneous_examples[label].append(cropped_msa)
 
             header_line_number += number_rows + 1
             
@@ -119,6 +124,8 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
 
     # Prepare the dataframe which will be exported as a csv for indexing
     train_df = pd.DataFrame(columns=["img_name","label"])
+    names = list()
+    labels = list()
 
     # Create the output folder for the datset
     if not os.path.exists(out_dir):
@@ -127,18 +134,21 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
     # Save all MSAs of the example list and add the filename and label to the csv
     for label, msas in examples.items():
         for i, msa in enumerate(msas[:max_possible_examples]):
-            file_name = label + "_" + str(i)
+            file_name = label + "_" + str(i) + ".png"
             save_msa_as_image(msa, file_name, out_dir)
-            train_df["img_name"] = file_name
-            train_df["label"] = nuc_to_index[label]
+            names.append(file_name)
+            labels.append(nuc_to_index[label])
 
     # Do the same for the erroneus examples
     for label, msas in erroneous_examples.items():
         for i, msa in enumerate(msas[:max_possible_examples]):
-            file_name = label + "_err_" + str(i)
+            file_name = label + "_err_" + str(i) + ".png"
             save_msa_as_image(msa, file_name, out_dir)
-            train_df["img_name"] = file_name
-            train_df["label"] = nuc_to_index[label]
+            names.append(file_name)
+            labels.append(nuc_to_index[label])
+
+    train_df["img_name"] = names
+    train_df["label"] = labels
 
     # Save the csv        
     train_df.to_csv (os.path.join(out_dir, "train_labels.csv"), index = False, header=True)
@@ -147,18 +157,19 @@ if __name__ == "__main__":
     import glob
 
     msa_data_path = "/home/mnowak/care/care-output/"
-    msa_file_name = "humanchr1430covMSA_1"
-    msa_file_paths = glob.glob(os.path.join(msa_data_path, msa_file_name))
+    msa_file_name = "humanchr1430covMSA_*"
+    msa_file_name_pattern = os.path.join(msa_data_path, msa_file_name)
+    msa_file_paths = glob.glob(msa_file_name_pattern)
 
     fastq_file_path = "/share/errorcorrection/datasets/artmiseqv3humanchr14" # /humanchr1430cov_errFree.fq"
     fastq_file_name = "humanchr1430cov_errFree.fq.gz"
     fastq_file = os.path.join(fastq_file_path, fastq_file_name)
 
     generate_center_base_train_images(
-        msa_file_paths=msa_file_paths,
-        ref_fastq_file_path=fastq_file,
-        image_height=50,
-        image_width=25,
-        out_dir="center_base_dataset_25_50",
-        max_number_examples=10
+            msa_file_paths=msa_file_paths,
+            ref_fastq_file_path=fastq_file,
+            image_height=50,
+            image_width=25,
+            out_dir="center_base_dataset_25_50",
+            max_number_examples=10
         )

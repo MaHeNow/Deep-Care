@@ -203,13 +203,12 @@ def get_middle_base(sequence):
 
 
 def save_msa_as_image(msa, name, root_dir, human_readable=False):
-    if human_readable:
-        msa = msa_to_image(msa)
+    msa = msa_to_image(msa, human_readable=human_readable)
     im = Image.fromarray(msa)
     im.save(os.path.join(root_dir, name))
 
 
-def msa_to_image(msa):
+def msa_to_image(msa, human_readable=False):
 
     COLORS = {
           "blue"   : [0, 0, 255, 255],
@@ -227,12 +226,12 @@ def msa_to_image(msa):
             
             msa_pixel = msa[:, y, x]
             if (torch.equal(msa_pixel ,torch.tensor([1, 0, 0, 0], dtype=torch.float))):
-                image_msa[y, x, :] = COLORS["blue"] # A becomes blue
+                image_msa[y, x, :] = COLORS["blue"] if human_readable else [255, 0, 0, 0] # A becomes blue
             elif (torch.equal(msa_pixel ,torch.tensor([0, 1, 0, 0], dtype=torch.float))):
-                image_msa[y, x, :] = COLORS["red"] # C becomes red
+                image_msa[y, x, :] = COLORS["red"] if human_readable else [0, 255, 0, 0] # C becomes red
             elif (torch.equal(msa_pixel ,torch.tensor([0, 0, 1, 0], dtype=torch.float))):
-                image_msa[y, x, :] = COLORS["green"] # G becomes green
+                image_msa[y, x, :] = COLORS["green"] if human_readable else [0, 0, 255, 0] # G becomes green
             elif (torch.equal(msa_pixel ,torch.tensor([0, 0, 0, 1], dtype=torch.float))):
-                image_msa[y, x, :] = COLORS["yellow"] # T becomes yellow
+                image_msa[y, x, :] = COLORS["yellow"] if human_readable else [0, 0, 0, 255] # T becomes yellow
             
     return image_msa
