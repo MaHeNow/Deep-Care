@@ -7,7 +7,7 @@ from nucleus.io import fastq
 import pandas as pd
 from PIL import Image
 
-from utils.msa import create_msa, crop_msa, get_middle_base, nuc_to_index, save_msa_as_image
+from deepcare.utils.msa import create_msa, crop_msa, get_middle_base, nuc_to_index, save_msa_as_image
 
 
 def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image_height, image_width, out_dir, max_number_examples, human_readable=False, verbose=False):
@@ -209,15 +209,15 @@ if __name__ == "__main__":
     fastq_file_name = "humanchr1430cov_errFree.fq.gz"
     fastq_file = os.path.join(fastq_file_path, fastq_file_name)
 
-    folder_name = "datasets/center_base_dataset_w11_h100_n800_human_readable"
+    folder_name = "datasets/humanchr1430covMSA_center_base_dataset_w51_h100_n64000_human_readable"
 
     generate_center_base_train_images(
             msa_file_paths=msa_file_paths,
             ref_fastq_file_path=fastq_file,
             image_height=100,
-            image_width=11,
+            image_width=51,
             out_dir=folder_name,
-            max_number_examples=800,
+            max_number_examples=64000,
             human_readable=True,
             verbose=True
         )
