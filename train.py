@@ -21,6 +21,11 @@ if __name__ == "__main__":
     shuffle = True
     pin_memory = True
     num_workers = 1
+    dataset_folder = "datasets"
+    dataset_name = "humanchr1430covMSA_center_base_dataset_w51_h100_n64000_not_human_readable"
+    dataset_csv_file = "train_labels.csv"
+    model_out_dir = "trainde_models"
+    model_name = "simple_conv_net_humanchr1430_center_base_w51_h100_n64000_not_human_readable_v2"
 
     transform = transforms.Compose(
             [
@@ -30,8 +35,8 @@ if __name__ == "__main__":
         )
 
     dataset = MSADataset(
-        root_dir="datasets/humanchr1430covMSA_center_base_dataset_w51_h100_n64000_not_human_readable",
-        annotation_file="datasets/humanchr1430covMSA_center_base_dataset_w51_h100_n64000_not_human_readable/train_labels.csv",
+        root_dir=os.path.join(dataset_folder, dataset_name),
+        annotation_file=os.path.join(dataset_folder, dataset_name, dataset_csv_file),
         transform=transform
         )
 
@@ -92,8 +97,7 @@ if __name__ == "__main__":
     print("Checking accuracy on Test Set")
     check_accuracy(validation_loader, model)
 
-    save_path = "trained_models"
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
+    if not os.path.exists(model_out_dir):
+        os.makedirs(model_out_dir)
 
-    torch.save(model.state_dict(), os.path.join(save_path, "simple_conv_net_humanchr1430_center_base_w51_h100_n64000_not_human_readable"))
+    torch.save(model.state_dict(), os.path.join(model_out_dir, model_name))
