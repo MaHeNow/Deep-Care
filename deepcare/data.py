@@ -215,7 +215,7 @@ if __name__ == "__main__":
             msa_file_paths=msa_file_paths,
             ref_fastq_file_path=fastq_file,
             image_height=100,
-            image_width=51,
+            image_width=250,
             out_dir=folder_name,
             max_number_examples=64000,
             human_readable=True,
