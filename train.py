@@ -8,8 +8,8 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
 from deepcare.data import MSADataset
-from deepcare.models.conv_net import conv_net_w51_h100
-from deepcare.utils.accuracy import check_accuracy
+from deepcare.models.conv_net import conv_net_w51_h100, conv_net_w51_h100_v2
+from deepcare.utils.accuracy import check_accuracy, check_accuracy_on_classes
 
 if __name__ == "__main__":
 
@@ -22,10 +22,10 @@ if __name__ == "__main__":
     pin_memory = True
     num_workers = 1
     dataset_folder = "datasets"
-    dataset_name = "humanchr1430covMSA_center_base_dataset_w51_h100_n64000_not_human_readable"
+    dataset_name = "humanchr1430covMSA_center_base_dataset_w51_h100_n64000_human_readable"
     dataset_csv_file = "train_labels.csv"
-    model_out_dir = "trainde_models"
-    model_name = "simple_conv_net_humanchr1430_center_base_w51_h100_n64000_not_human_readable_v2"
+    model_out_dir = "trained_models"
+    model_name = "simple_conv_net_v2_humanchr1430_center_base_w51_h100_n64000_human_readable"
 
     transform = transforms.Compose(
             [
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     validation_loader = DataLoader(dataset=validation_set, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers, pin_memory=pin_memory)
 
     # Model
-    model = conv_net_w51_h100()
+    model = conv_net_w51_h100_v2()
     model.to(device)
 
     # Loss and optimizer
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
         if (epoch+1) % 10 == 0:
             print(f"Accuracy on the validation set after epoch {epoch}:") 
-            check_accuracy(validation_loader, model)
+            check_accuracy(validation_loader, model, device)
 
     end_time = time.time()
     duration = end_time - start_time
@@ -92,10 +92,10 @@ if __name__ == "__main__":
     print(f"Finished training. The process took {duration} seconds.")    
 
     print("Checking accuracy on Training Set")
-    check_accuracy(train_loader, model)
+    check_accuracy_on_classes(train_loader, model, device)
 
     print("Checking accuracy on Test Set")
-    check_accuracy(validation_loader, model)
+    check_accuracy_on_classes(validation_loader, model, device)
 
     if not os.path.exists(model_out_dir):
         os.makedirs(model_out_dir)

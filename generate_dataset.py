@@ -16,7 +16,7 @@ if __name__ == "__main__":
     fastq_file_name = "humanchr1430cov_errFree.fq.gz"
     fastq_file = os.path.join(fastq_file_path, fastq_file_name)
 
-    folder_name = "datasets/humanchr1430covMSA_center_base_dataset_w51_h100_n64000_not_human_readable"
+    folder_name = "datasets/humanchr1430covMSA_center_base_dataset_w250_h100_n160000_not_human_readable"
 
     generate_center_base_train_images(
             msa_file_paths=msa_file_paths,
