@@ -158,3 +158,74 @@ def msa_to_image(msa, human_readable=False):
                 image_msa[y, x, :] = COLORS["yellow"] if human_readable else [0, 0, 0, 255] # T becomes yellow
             
     return image_msa
+
+
+def count_examples_of_file(msa_file_path, ref_fastq_file_path):
+
+    erroneous_examples = {
+        "A" : 0,
+        "C" : 0,
+        "G" : 0,
+        "T" : 0
+    }
+
+    examples = {
+        "A" : 0,
+        "C" : 0,
+        "G" : 0,
+        "T" : 0
+    }
+
+    # read the reference file
+    with fastq.FastqReader(ref_fastq_file_path) as reader:
+        ref_reads = [read for read in reader]
+
+    # open the msa file
+    file_ = open(msa_file_path, "r")
+    lines = [line.replace('\n', '') for line in file_]
+    print(f"Number lines to read: {len(lines)}")
+
+    reading = True
+    header_line_number = 0
+
+    while reading:
+
+        print(f"Currently at line {header_line_number}")
+        if header_line_number >= len(lines):
+                reading = False
+                continue
+        
+        # Get relavant information of the MSA from one of many heades in the
+        # file encoding the MSAs
+        number_rows, number_columns, anchor_in_msa, anchor_in_file = [int(i) for i in lines[header_line_number].split(" ")]
+
+        start_height = header_line_number+1
+        end_height = header_line_number+number_rows+1
+
+        msa_lines = lines[start_height:end_height]
+        anchor_column_index, anchor_sequence = msa_lines[anchor_in_msa].split(" ")
+
+        # Get the reference sequence
+        reference = ref_reads[anchor_in_file].sequence
+        
+        # Create a pytorch tensor encoding the msa from the text file
+        msa = create_msa(msa_lines, number_rows, number_columns)
+
+        # Go over entire anchor sequence and compare it with the reference
+        for i, (b, rb) in enumerate(zip(anchor_sequence, reference)):
+
+            # Count how many bases are correct and incorrect
+            if rb == b:
+                examples[rb] += 1
+            else:
+                erroneous_examples[rb] += 1
+        
+        # Jump to next MSA
+        header_line_number += number_rows + 1
+        
+    print("Done counting examples.")
+    print("Examples with correct bases: ", examples)
+    print("Examples with erroneus bases: ", erroneous_examples)
+
+    return examples, erroneous_examples
+
