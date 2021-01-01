@@ -28,6 +28,10 @@ if __name__ == "__main__":
     model_out_dir = "trained_models"
     model_name = "conv_net_v1_humanchr1430_center_base_w250_h150_n64000_human_readable"
 
+    # Model
+    model = conv_net_w51_h100_v4()
+    model.to(device)
+
     transform = transforms.Compose(
             [
                 transforms.ToTensor(),
@@ -50,10 +54,6 @@ if __name__ == "__main__":
     train_set, validation_set = torch.utils.data.random_split(dataset,[52000,12000])
     train_loader = DataLoader(dataset=train_set, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers,pin_memory=pin_memory)
     validation_loader = DataLoader(dataset=validation_set, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers, pin_memory=pin_memory)
-
-    # Model
-    model = conv_net_w51_h100_v4()
-    model.to(device)
 
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss() 
