@@ -154,7 +154,6 @@ def conv_net_w51_h100_v3():
 
 class ConvNetW51H100V4(nn.Module):
 
-    # TODO: Accidentally changed the weights, need to fix them
     def __init__(self):
         super(ConvNetW51H100V4, self).__init__()
         # 4 input image channel, 6 output channels, 3x3 square convolution
