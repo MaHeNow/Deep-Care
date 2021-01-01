@@ -40,7 +40,8 @@ if __name__ == "__main__":
 
     loader = DataLoader(dataset=dataset, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers,pin_memory=pin_memory)
     
-    model.load_state_dict(torch.load(os.path.join(model_path, model_name)))
+    state_dict = torch.load(os.path.join(model_path, model_name))
+    model.load_state_dict(state_dict)
     model.to(device)
 
     check_accuracy_on_classes(loader=loader, model=model, device=device)
