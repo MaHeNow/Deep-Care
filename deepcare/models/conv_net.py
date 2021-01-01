@@ -76,7 +76,7 @@ class ConvNetW51H100V1(nn.Module):
         return num_features
 
 
-def conv_net_w51_h100():
+def conv_net_w51_h100_v1():
     return ConvNetW51H100V1()
 
 
