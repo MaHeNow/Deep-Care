@@ -1,5 +1,6 @@
 import os
 import random
+import time
 
 import torch
 from torch.utils.data import Dataset
@@ -174,31 +175,23 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
         print("Done")
 
 
-def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_path, image_height, image_width, out_dir, human_readable=False, verbose=False):
+def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_path, image_height, image_width, out_dir, max_num_examples, human_readable=False, verbose=False):
     
     import multiprocessing
     manager = multiprocessing.Manager()
 
     number_examples = 0
-    max_num_examples = 0
+    allowed_bases = "ACGT"
+    target_num_examples = max_num_examples //(2*len(allowed_bases))
 
-    erroneous_examples = {
-        "A" : [],
-        "C" : [],
-        "G" : [],
-        "T" : []
-    }
-
-    examples = {
-        "A" : [],
-        "C" : [],
-        "G" : [],
-        "T" : []
-    }
+    erroneous_examples = manager.dict({i : [] for i in allowed_bases})
+    erroneous_examples_counter = manager.dict({i : 0 for i in allowed_bases})
+    examples = manager.dict({i : [] for i in allowed_bases})
+    examples_counter = manager.dict({i : 0 for i in allowed_bases})
 
     # Get the reference reads for the MSAs
     if verbose:
-        print("Reading the reference file... ", end="")
+        print("Reading the reference file... ")
     with fastq.FastqReader(ref_fastq_file_path) as reader:
         ref_reads = [read for read in reader]
     if verbose:
@@ -207,9 +200,18 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
     # Open the file and get its lines
     file_ = open(msa_file_path, "r")
     lines = [line.replace('\n', '') for line in file_]
+    if verbose:
+        print(f"The file has a total of {len(lines)} lines in the file.")
 
     reading = True
     header_line_number = 0
+    header_line_numbers = []
+    million_counter = 0
+
+    if verbose:
+        print("Counting the MSAs...")
+
+    start = time.time()
 
     while reading:
 
@@ -217,61 +219,41 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
             reading = False
             continue
 
-        #if verbose:
-        #    print(f"{max_possible_examples*(2*len(examples.keys()))} out of {max_number_examples} created.")
+        header_line_numbers.append(header_line_number)
+        if header_line_number >= million_counter*1000000:
+            print(f"Currently at line {header_line_number}")
+            million_counter += 1
 
-        #if max_possible_examples == max_number_examples //(2*len(examples.keys())):
-        #    reading = False
-        #    continue
-
-        # Get relavant information of the MSA from one of many heades in the
-        # file encoding the MSAs
         number_rows, number_columns, anchor_in_msa, anchor_in_file = [int(i) for i in lines[header_line_number].split(" ")]
         header_line_number += number_rows + 1
 
-        def parallel_func(n_rows, n_col, anchor_in_msa, anchor_in_file, header_line_number):
+    end = time.time()
+    duration = end - start
 
-            start_height = header_line_number+1
-            end_height = header_line_number+number_rows+1
-
-            msa_lines = lines[start_height:end_height]
-            anchor_column_index, anchor_sequence = msa_lines[anchor_in_msa].split(" ")
-
-            # Get the reference sequence
-            reference = ref_reads[anchor_in_file].sequence
-            
-            # Create a pytorch tensor encoding the msa from the text file
-            msa = create_msa(msa_lines, number_rows, number_columns)
-
-            # Go over entire anchor sequence and compare it with the reference
-            for i, (b, rb) in enumerate(zip(anchor_sequence, reference)):
-
-                center_index = i + int(anchor_column_index)+1
-                
-                # Add no more examples to a group of bases if we have enough examples
-                # for that specific base
-                if b == rb:
-                    if len(examples[rb]) >= max_number_examples//(2*len(examples.keys())):
-                        continue
-                else:
-                    if len(erroneous_examples[rb]) >= max_number_examples//(2*len(erroneous_examples.keys())):
-                        continue
-
-                # Crop the MSA round the currently centered base
-                cropped_msa = crop_msa(msa, image_width, image_height, center_index, anchor_in_msa)
-                label = rb
-
-                # Decide whether to add the example to the list of erroneus or
-                # correct examples
-                if b == rb:
-                    examples[label].append(cropped_msa)
-                else:
-                    erroneous_examples[label].append(cropped_msa)
-
-        
-            
     if verbose:
-        print("Done creating examples.")
+        print("Done")
+        print(f"There were {len(header_line_numbers)} many MSAs found. Counting the MSAs took {duration} seconds")    
+
+    if verbose:
+        print("Creating examples...")
+
+    processes = []
+
+    for i in header_line_numbers[:3]:
+        args = (lines, i, image_width, image_height, ref_reads, examples_counter, target_num_examples, examples, erroneous_examples, erroneous_examples_counter)
+        p = multiprocessing.Process(target=parallel_func, args=args)
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join()
+
+    if verbose:
+        print("Done")
+
+        print("This is the counting state")
+        print("Normal ", examples_counter)
+        print("Err, ", erroneous_examples_counter)
 
     # After all examples are generated, save the images to a folder and create a
     # training csv file
@@ -286,7 +268,7 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
         os.makedirs(out_dir)
 
     if verbose:
-        print("Saving examples... ", end="")
+        print("Saving examples... ")
 
     # Save all MSAs of the example list and add the filename and label to the csv
     for label, msas in examples.items():
@@ -313,6 +295,54 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
     if verbose:
         print("Done")
 
+
+def parallel_func(lines, header_line_number, image_width, image_height, ref_reads, examples_counter, target_num_examples, examples, erroneous_examples, erroneous_examples_counter):
+
+        number_rows, number_columns, anchor_in_msa, anchor_in_file = [int(i) for i in lines[header_line_number].split(" ")]
+        start_height = header_line_number+1
+        end_height = header_line_number+number_rows+1
+
+        msa_lines = lines[start_height:end_height]
+        anchor_column_index, anchor_sequence = msa_lines[anchor_in_msa].split(" ")
+
+        # Get the reference sequence
+        reference = ref_reads[anchor_in_file].sequence
+        
+        # Create a pytorch tensor encoding the msa from the text file
+        msa = create_msa(msa_lines, number_rows, number_columns)
+
+        # Go over entire anchor sequence and compare it with the reference
+        for i, (b, rb) in enumerate(zip(anchor_sequence, reference)):
+
+            center_index = i + int(anchor_column_index)+1
+            
+            # Add no more examples to a group of bases if we have enough examples
+            # for that specific base
+            if b == rb:
+                if examples_counter[rb] >= target_num_examples:
+                    continue
+                else:
+                    examples_counter[rb] += 1
+            else:
+                if erroneous_examples_counter[rb] >= target_num_examples:
+                    continue
+                else:
+                    erroneous_examples_counter[rb] += 1
+
+            # Crop the MSA around the currently centered base
+            cropped_msa = crop_msa(msa, image_width, image_height, center_index, anchor_in_msa)
+            label = rb
+
+            # Decide whether to add the example to the list of erroneus or
+            # correct examples
+            if b == rb:
+                l = examples[label]
+                l.append(cropped_msa)
+                examples[label] = l 
+            else:
+                l = erroneous_examples[label]
+                l.append(cropped_msa)
+                erroneous_examples[label] = l
 
 class MSADataset(Dataset):
 

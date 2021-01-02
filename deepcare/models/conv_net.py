@@ -190,6 +190,7 @@ def conv_net_w51_h100_v4():
 
 
 class ConvNetW250H50V1(nn.Module):
+    # 96% Accuracy on unseen data
 
     def __init__(self):
         super(ConvNetW250H50V1, self).__init__()
@@ -227,6 +228,7 @@ def conv_net_w250_h50_v1():
 
 
 class ConvNetW250H50V2(nn.Module):
+    # 92% Accuracy on unseen data
 
     def __init__(self):
         super(ConvNetW250H50V2, self).__init__()
@@ -261,3 +263,40 @@ class ConvNetW250H50V2(nn.Module):
 
 def conv_net_w250_h50_v2():
     return ConvNetW250H50V2()
+
+
+class ConvNetW250H50V3(nn.Module):
+
+    def __init__(self):
+        super(ConvNetW250H50V3, self).__init__()
+        # 4 input image channel, 6 output channels, 3x3 square convolution
+        # kernel
+        self.conv1 = nn.Conv2d(4, 6, (4,4))
+        self.conv2 = nn.Conv2d(6, 16, (5,5))
+        #self.conv3 = nn.Conv2d(16, 16, (7,6))
+        # an affine operation: y = Wx + b
+        self.fc1 = nn.Linear(16 * 9 * 59, 120)  # 6*6 from image dimension
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 4)
+
+    def forward(self, x):
+        # Max pooling over a (2, 2) window
+        x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
+        x = F.max_pool2d(F.relu(self.conv2(x)), (2, 2))
+        #x = F.max_pool2d(F.relu(self.conv3(x)), (2, 2))
+        x = x.view(-1, self.num_flat_features(x))
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
+    def num_flat_features(self, x):
+        size = x.size()[1:]  # all dimensions except the batch dimension
+        num_features = 1
+        for s in size:
+            num_features *= s
+        return num_features
+
+
+def conv_net_w250_h50_v3():
+    return ConvNetW250H50V3()

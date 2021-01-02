@@ -8,14 +8,14 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
 from deepcare.data import MSADataset
-from deepcare.models.conv_net import conv_net_w51_h100, conv_net_w51_h100_v3, conv_net_w51_h100_v4, conv_net_w250_h50_v1
+from deepcare.models.conv_net import conv_net_w51_h100_v1, conv_net_w51_h100_v3, conv_net_w51_h100_v4, conv_net_w250_h50_v1, conv_net_w250_h50_v2
 from deepcare.utils.accuracy import check_accuracy, check_accuracy_on_classes
 
 if __name__ == "__main__":
 
     device = ("cuda" if torch.cuda.is_available() else "cpu")
 
-    num_epochs = 160
+    num_epochs = 200
     learning_rate = 0.00001
     batch_size = 256
     shuffle = True
@@ -26,10 +26,10 @@ if __name__ == "__main__":
     validationset_name = "humanchr1430covMSA_part5_center_base_dataset_w51_h100_n64000_human_readable"
     dataset_csv_file = "train_labels.csv"
     model_out_dir = "trained_models"
-    model_name = "conv_net_v1_humanchr1430_center_base_w250_h150_n64000_human_readable"
+    model_name = "conv_net_v2_humanchr1430_center_base_w250_h50_n64000_human_readable"
 
     # Model
-    model = conv_net_w51_h100_v4()
+    model = conv_net_w250_h50_v2()
     model.to(device)
 
     transform = transforms.Compose(

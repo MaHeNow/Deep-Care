@@ -6,7 +6,7 @@ import torchvision.transforms as transforms
 
 from deepcare.utils.accuracy import check_accuracy_on_classes
 from deepcare.data import MSADataset
-from deepcare.models.conv_net import conv_net_w51_h100, conv_net_w51_h100_v2, conv_net_w51_h100_v3, conv_net_w51_h100_v4
+from deepcare.models.conv_net import conv_net_w51_h100_v1, conv_net_w51_h100_v2, conv_net_w51_h100_v3, conv_net_w51_h100_v4, conv_net_w250_h50_v1
 
 
 if __name__ == "__main__":
@@ -17,8 +17,8 @@ if __name__ == "__main__":
     dataset_name = "humanchr1430covMSA_part5_center_base_dataset_w51_h100_n64000_human_readable"
 
     model_path = "trained_models"
-    model_name = "simple_conv_net_v4_humanchr1430_center_base_w51_h100_n64000_human_readable"
-    model = conv_net_w51_h100_v4()
+    model_name = "conv_net_v1_humanchr1430_center_base_w250_h150_n64000_human_readable"
+    model = conv_net_w250_h50_v1()
 
     shuffle = False
     batch_size = 256
