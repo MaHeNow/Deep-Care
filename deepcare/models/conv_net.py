@@ -197,9 +197,9 @@ class ConvNetW250H50V1(nn.Module):
         # kernel
         self.conv1 = nn.Conv2d(4, 6, (7,3))
         self.conv2 = nn.Conv2d(6, 16, (9,5))
-        self.conv3 = nn.Conv2d(16, 16, (11,7))
+        #self.conv3 = nn.Conv2d(16, 16, (11,5))
         # an affine operation: y = Wx + b
-        self.fc1 = nn.Linear(16 * 19 * 10, 120)  # 6*6 from image dimension
+        self.fc1 = nn.Linear(16 * 7 * 60, 120)  # 6*6 from image dimension
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 4)
 
@@ -207,7 +207,7 @@ class ConvNetW250H50V1(nn.Module):
         # Max pooling over a (2, 2) window
         x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
         x = F.max_pool2d(F.relu(self.conv2(x)), (2, 2))
-        x = F.max_pool2d(F.relu(self.conv3(x)), (2, 2))
+        #x = F.max_pool2d(F.relu(self.conv3(x)), (2, 2))
         x = x.view(-1, self.num_flat_features(x))
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
@@ -232,11 +232,11 @@ class ConvNetW250H50V2(nn.Module):
         super(ConvNetW250H50V2, self).__init__()
         # 4 input image channel, 6 output channels, 3x3 square convolution
         # kernel
-        self.conv1 = nn.Conv2d(4, 6, (7,5))
-        self.conv2 = nn.Conv2d(6, 16, (9,7))
-        self.conv3 = nn.Conv2d(16, 16, (11,9))
+        self.conv1 = nn.Conv2d(4, 6, (4,4))
+        self.conv2 = nn.Conv2d(6, 16, (6,5))
+        self.conv3 = nn.Conv2d(16, 16, (7,6))
         # an affine operation: y = Wx + b
-        self.fc1 = nn.Linear(16 * 19 * 10, 160)  # 6*6 from image dimension
+        self.fc1 = nn.Linear(16 * 1 * 27, 160)  # 6*6 from image dimension
         self.fc2 = nn.Linear(160, 84)
         self.fc3 = nn.Linear(84, 4)
 
