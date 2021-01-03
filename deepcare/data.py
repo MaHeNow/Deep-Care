@@ -32,13 +32,14 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
 
     # Get the reference reads for the MSAs
     if verbose:
-        print("Reading the reference file... ", end="")
+        print("Reading the reference file... ")
     with fastq.FastqReader(ref_fastq_file_path) as reader:
         ref_reads = [read for read in reader]
     if verbose:
         print("Done")
 
     max_num_examples_reached = False
+    start = time.time()
 
     # Loop over all given files
     for path in msa_file_paths:
@@ -166,6 +167,9 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
             names.append(file_name)
             labels.append(nuc_to_index[label])
 
+    end = time.time()
+    duration = end - start
+
     train_df["img_name"] = names
     train_df["label"] = labels
 
@@ -173,7 +177,7 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
     train_df.to_csv (os.path.join(out_dir, "train_labels.csv"), index = False, header=True)
 
     if verbose:
-        print("Done")
+        print(f"Done. The process took {duration} seconds.")
 
 
 def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_path, image_height, image_width, out_dir, max_num_examples, human_readable=False, verbose=False):
