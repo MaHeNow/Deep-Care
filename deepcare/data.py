@@ -1,6 +1,7 @@
 import os
 import random
 import time
+import glob
 
 import torch
 from torch.utils.data import Dataset
@@ -180,28 +181,40 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
     import multiprocessing
     manager = multiprocessing.Manager()
 
-    number_examples = 0
+    global_start = time.time()
+
     allowed_bases = "ACGT"
     target_num_examples = max_num_examples //(2*len(allowed_bases))
 
-    erroneous_examples = manager.dict({i : [] for i in allowed_bases})
     erroneous_examples_counter = manager.dict({i : 0 for i in allowed_bases})
-    examples = manager.dict({i : [] for i in allowed_bases})
     examples_counter = manager.dict({i : 0 for i in allowed_bases})
+
+    # Create the output folder for the datset
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
     # Get the reference reads for the MSAs
     if verbose:
         print("Reading the reference file... ")
+    start = time.time()
     with fastq.FastqReader(ref_fastq_file_path) as reader:
         ref_reads = [read for read in reader]
+    end = time.time()
+    duration = end - start
     if verbose:
-        print("Done")
+        print(f"Done. Reading the reference file took {duration} seconds.")
     
     # Open the file and get its lines
+    if verbose:
+        print(f"Reading the file {msa_file_path}...")
+
+    start = time.time()
     file_ = open(msa_file_path, "r")
     lines = [line.replace('\n', '') for line in file_]
+    end = time.time()
+    duration = end - start
     if verbose:
-        print(f"The file has a total of {len(lines)} lines in the file.")
+        print(f"Done. Reading took {duration} and the file has a total of {len(lines)} lines.")
 
     reading = True
     header_line_number = 0
@@ -235,56 +248,51 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
         print(f"There were {len(header_line_numbers)} many MSAs found. Counting the MSAs took {duration} seconds")    
 
     if verbose:
-        print("Creating examples...")
+        print("Creating and saving examples...")
 
     processes = []
+    num_processes = multiprocessing.cpu_count()-1 or 1
+    if verbose:
+        print(f"The data will be generated using {num_processes} parallel processes.")
 
-    for i in header_line_numbers[:3]:
-        args = (lines, i, image_width, image_height, ref_reads, examples_counter, target_num_examples, examples, erroneous_examples, erroneous_examples_counter)
+    start = time.time()
+    chunk_length = len(header_line_numbers) // num_processes
+    for i in range(0, len(header_line_numbers), chunk_length):
+        chunk = header_line_numbers[i:i+chunk_length]
+        args = (lines, chunk, image_width, image_height, ref_reads, out_dir, examples_counter, erroneous_examples_counter, target_num_examples, human_readable, allowed_bases)
         p = multiprocessing.Process(target=parallel_func, args=args)
         p.start()
         processes.append(p)
 
     for p in processes:
         p.join()
+    
+    end = time.time()
+    duration = end - start
 
     if verbose:
-        print("Done")
+        print(f"Done. Creating and saving the examples took {duration} seconds.")
 
         print("This is the counting state")
         print("Normal ", examples_counter)
         print("Err, ", erroneous_examples_counter)
 
-    # After all examples are generated, save the images to a folder and create a
-    # training csv file
+    if verbose:
+        print("Now creating the annotations file...")
 
+    # After all examples are generated and saved, create the training csv file
+    start = time.time()
+    
     # Prepare the dataframe which will be exported as a csv for indexing
     train_df = pd.DataFrame(columns=["img_name","label"])
     names = list()
     labels = list()
 
-    # Create the output folder for the datset
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    if verbose:
-        print("Saving examples... ")
-
-    # Save all MSAs of the example list and add the filename and label to the csv
-    for label, msas in examples.items():
-        for i, msa in enumerate(msas):
-            file_name = label + "_" + str(i) + ".png"
-            save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
-            names.append(file_name)
-            labels.append(nuc_to_index[label])
-
-    # Do the same for the erroneus examples
-    for label, msas in erroneous_examples.items():
-        for i, msa in enumerate(msas):
-            file_name = label + "_err_" + str(i) + ".png"
-            save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
-            names.append(file_name)
-            labels.append(nuc_to_index[label])
+    for b in allowed_bases:
+        files = glob.glob(os.path.join(out_dir, f"{b.upper()}*"))
+        for file_ in files:
+            names.append(os.path.basename(file_))
+            labels.append(nuc_to_index[b])
 
     train_df["img_name"] = names
     train_df["label"] = labels
@@ -292,11 +300,28 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
     # Save the csv        
     train_df.to_csv (os.path.join(out_dir, "train_labels.csv"), index = False, header=True)
 
+    end = time.time()
+    duration = end - start
+
+    global_end = time.time()
+    global_duration = global_end - global_start
+
     if verbose:
-        print("Done")
+        print(f"Done. Creating the annotations file took {duration} seconds.")
+        print(f"The dataset is fully created. The entire process took {global_duration} seconds.")
 
 
-def parallel_func(lines, header_line_number, image_width, image_height, ref_reads, examples_counter, target_num_examples, examples, erroneous_examples, erroneous_examples_counter):
+def parallel_func(lines, header_line_numbers, image_width, image_height, ref_reads, out_dir, examples_counter, erroneous_examples_counter, target_num_examples, human_readable, allowed_bases):
+
+    erroneous_examples = {i : [] for i in allowed_bases}
+    examples = {i : [] for i in allowed_bases}
+    done_searching = False
+
+    for header_line_number in header_line_numbers:
+
+        done_searching = min(min(examples_counter.values()), min(erroneous_examples_counter.values())) == target_num_examples
+        if done_searching:
+            break
 
         number_rows, number_columns, anchor_in_msa, anchor_in_file = [int(i) for i in lines[header_line_number].split(" ")]
         start_height = header_line_number+1
@@ -315,18 +340,21 @@ def parallel_func(lines, header_line_number, image_width, image_height, ref_read
         for i, (b, rb) in enumerate(zip(anchor_sequence, reference)):
 
             center_index = i + int(anchor_column_index)+1
-            
+            global_index = 0
+
             # Add no more examples to a group of bases if we have enough examples
             # for that specific base
             if b == rb:
                 if examples_counter[rb] >= target_num_examples:
                     continue
                 else:
+                    global_index = examples_counter[rb]
                     examples_counter[rb] += 1
             else:
                 if erroneous_examples_counter[rb] >= target_num_examples:
                     continue
                 else:
+                    global_index = erroneous_examples_counter[rb]
                     erroneous_examples_counter[rb] += 1
 
             # Crop the MSA around the currently centered base
@@ -336,13 +364,25 @@ def parallel_func(lines, header_line_number, image_width, image_height, ref_read
             # Decide whether to add the example to the list of erroneus or
             # correct examples
             if b == rb:
-                l = examples[label]
-                l.append(cropped_msa)
-                examples[label] = l 
+                examples[label].append((cropped_msa, global_index))
             else:
-                l = erroneous_examples[label]
-                l.append(cropped_msa)
-                erroneous_examples[label] = l
+                erroneous_examples[label].append((cropped_msa, global_index))
+            
+        # Save all MSAs of the example list and add the filename and label to the csv
+        for label, msa_index_pairs in examples.items():
+            for (msa, index) in msa_index_pairs:
+                file_name = label + "_" + str(index) + ".png"
+                save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
+
+        # Do the same for the erroneus examples
+        for label, msa_index_pairs in erroneous_examples.items():
+            for (msa, index) in msa_index_pairs:
+                file_name = label + "_err_" + str(index) + ".png"
+                save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
+
+
+    
+
 
 class MSADataset(Dataset):
 
