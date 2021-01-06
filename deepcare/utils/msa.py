@@ -22,6 +22,14 @@ nuc_to_vector = {
     "T": torch.tensor([0, 0, 0, 1], dtype=torch.float32)
 }
 
+nuc_to_color = {
+          "A" : np.array([  0,   0, 255, 255], dtype=np.uint8), # A becomes blue
+          "C" : np.array([255,   0,   0, 255], dtype=np.uint8), # C becomes red
+          "G" : np.array([255,   0,   0, 255], dtype=np.uint8), # G becomes green
+          "T" : np.array([255, 255,   0, 255], dtype=np.uint8)  # T becomes yellow
+    }
+
+
 def create_msa(msa_lines, number_rows, number_columns):
 
     msa_shape = (4, number_rows, number_columns)
@@ -33,6 +41,21 @@ def create_msa(msa_lines, number_rows, number_columns):
         column_index = int(column_index)
         for j, nucleotide in enumerate(sequence):
             msa[nuc_to_index[nucleotide], i, column_index+j] = 1
+
+    return msa
+
+
+def create_msa_image(msa_lines, number_rows, number_columns):
+
+    msa_shape = (4, number_rows, number_columns)
+    msa = np.zeros(msa_shape, dtype=np.uint8)
+
+    for i, line in enumerate(msa_lines):
+
+        column_index, sequence = line.split(" ")
+        column_index = int(column_index)
+        for j, nucleotide in enumerate(sequence):
+            msa[:, i, column_index+j] = nuc_to_color[nucleotide]
 
     return msa
 
@@ -66,6 +89,11 @@ def get_middle_base(sequence):
 
 def save_msa_as_image(msa, name, root_dir, human_readable=False):
     msa = msa_to_image(msa, human_readable=human_readable)
+    im = Image.fromarray(msa)
+    im.save(os.path.join(root_dir, name))
+
+
+def save_msa_image(msa, name, root_dir):
     im = Image.fromarray(msa)
     im.save(os.path.join(root_dir, name))
 
