@@ -22,67 +22,6 @@ nuc_to_vector = {
     "T": torch.tensor([0, 0, 0, 1], dtype=torch.float32)
 }
 
-
-def make_examples_from_file(msa_file, reference_fastq_file, image_height, image_width, number_examples=None):
-    """
-    Takes in the path of a text file encoding MSAs.
-    Returns a generator with the output (MSA, label)
-    """
-    
-    msas = []
-    labels = []
-    i = 0
-
-    # open a fastq reader to generate a list of all reference reads
-    print("Starting to read the reference fastq file...")
-    with fastq.FastqReader(reference_fastq_file) as reader:
-        ref_reads = [read for read in reader]
-    print("Done reading the reference file.")
-
-    # open the file and generate a list of its lines
-    file_ = open(msa_file, "r")
-    lines = [line.replace('\n', '') for line in file_]
-
-    reading = True
-    header_line_number = 0
-
-    while reading:
-        
-        if i == number_examples:
-            break
-
-        # continue reading until the last header of an msa
-        if header_line_number >= len(lines):
-            reading = False 
-            continue
-
-        number_rows, number_columns, anchor_in_msa, anchor_in_file = [int(i) for i in lines[header_line_number].split(" ")]
-        
-        start_height = header_line_number+1
-        end_height = header_line_number+number_rows+1
-
-        msa_lines = lines[start_height:end_height]
-        anchor_column_index, anchor_sequence= msa_lines[anchor_in_msa].split(" ")
-
-        center_index = int(anchor_column_index) + len(anchor_sequence)/2
-
-        # createa a numpy array encoding the msa from the text file
-        msa = create_msa(msa_lines, number_rows, number_columns)
-        cropped_msa = crop_msa(msa, image_width, image_height, center_index, anchor_in_msa)
-
-        reference = ref_reads[anchor_in_file].sequence
-        middle_base = get_middle_base(reference)
-        
-        header_line_number += number_rows + 1
-
-        msas.append(cropped_msa)
-        labels.append(middle_base)
-
-        i += 1
-    
-    return torch.stack(msas), torch.tensor(labels)
-
-
 def create_msa(msa_lines, number_rows, number_columns):
 
     msa_shape = (4, number_rows, number_columns)
