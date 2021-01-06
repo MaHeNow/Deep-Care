@@ -153,6 +153,7 @@ def conv_net_w51_h100_v3():
 
 
 class ConvNetW51H100V4(nn.Module):
+    # 96% accuracy on unseen data
 
     def __init__(self):
         super(ConvNetW51H100V4, self).__init__()
@@ -266,6 +267,7 @@ def conv_net_w250_h50_v2():
 
 
 class ConvNetW250H50V3(nn.Module):
+    # Accuracy von 96.88 auf unseen data
 
     def __init__(self):
         super(ConvNetW250H50V3, self).__init__()
