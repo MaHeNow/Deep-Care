@@ -15,21 +15,21 @@ if __name__ == "__main__":
 
     device = ("cuda" if torch.cuda.is_available() else "cpu")
 
-    num_epochs = 160
+    num_epochs = 180
     learning_rate = 0.00001
     batch_size = 256
     shuffle = True
     pin_memory = True
     num_workers = 1
     dataset_folder = "datasets"
-    dataset_name = "humanchr1430covMSA_part_7_9_center_base_dataset_w250_h50_n64000_human_readable"
-    validationset_name = "humanchr1430covMSA_part5_center_base_dataset_w51_h100_n64000_human_readable"
+    dataset_name = "humanchr1430covMSA_part5_center_base_dataset_w51_h100_n64000_human_readable"
+    validationset_name = "humanchr1430covMSA_part1_center_base_dataset_w51_h100_n24000_human_readable"
     dataset_csv_file = "train_labels.csv"
     model_out_dir = "trained_models"
-    model_name = "conv_net_v1_humanchr1430_center_base_w250_h50_n64000_human_readable"
+    model_name = "conv_net_v4_humanchr1430_center_base_w51_h100_n64000_human_readable_part5"
 
     # Model
-    model = conv_net_w250_h50_v3()
+    model = conv_net_w51_h100_v4()
     model.to(device)
 
     transform = transforms.Compose(
@@ -39,19 +39,19 @@ if __name__ == "__main__":
             ]
         )
 
-    dataset = MSADataset(
+    train_set = MSADataset(
         root_dir=os.path.join(dataset_folder, dataset_name),
         annotation_file=os.path.join(dataset_folder, dataset_name, dataset_csv_file),
         transform=transform
         )
     
-    #validation_set = MSADataset(
-    #    root_dir=os.path.join(dataset_folder, validationset_name),
-    #    annotation_file=os.path.join(dataset_folder, validationset_name, dataset_csv_file),
-    #    transform=transform
-    #)
+    validation_set = MSADataset(
+        root_dir=os.path.join(dataset_folder, validationset_name),
+        annotation_file=os.path.join(dataset_folder, validationset_name, dataset_csv_file),
+        transform=transform
+    )
 
-    train_set, validation_set = torch.utils.data.random_split(dataset,[52000,12000])
+    #train_set, validation_set = torch.utils.data.random_split(dataset,[52000,12000])
     train_loader = DataLoader(dataset=train_set, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers,pin_memory=pin_memory)
     validation_loader = DataLoader(dataset=validation_set, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers, pin_memory=pin_memory)
 
@@ -89,7 +89,7 @@ if __name__ == "__main__":
         epoch_duration = epoch_end_time - epoch_start_time
         print(f'Cost at epoch {epoch} is {sum(losses)/len(losses)}. Training the epoch took {epoch_duration} seconds.')
 
-        if (epoch+1) % 10 == 0:
+        if (epoch+1) % 20 == 0:
             print(f"Accuracy on the validation set after epoch {epoch}:") 
             check_accuracy(validation_loader, model, device)
 
