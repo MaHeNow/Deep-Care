@@ -7,6 +7,8 @@ import torch
 from torch.utils.data import Dataset
 from nucleus.io import fastq
 import multiprocessing
+from multiprocessing import get_context
+from itertools import repeat
 import pandas as pd
 from PIL import Image
 
@@ -654,29 +656,38 @@ def generate_center_base_train_images_parallel_v3(msa_file_path, ref_fastq_file_
         print("Creating and saving examples...")
     start = time.time()
 
-    processes = []
-    result_queue = multiprocessing.Queue()
+    #processes = []
+    #result_queue = multiprocessing.Queue()
 
     header_line_numbers = header_line_numbers[:2]
 
     chunk_length = len(header_line_numbers) // num_processes
-    for i in range(0, len(header_line_numbers), chunk_length):
-        chunk = header_line_numbers[i:i+chunk_length]
-        args = (result_queue, lines, chunk, image_width, image_height, ref_reads, out_dir, human_readable, allowed_bases)
-        p = multiprocessing.Process(target=parallel_func_2, args=args)
-        p.start()
-        processes.append(p)
+    chunks = [header_line_numbers[i:i+chunk_length] for i in range(0, len(header_line_numbers), chunk_length)]
+    with get_context("spawn").Pool(num_processes) as pool:
+        
+        args = zip(repeat(lines), 
+                    chunks, 
+                    repeat(image_width), 
+                    repeat(image_height), 
+                    repeat(ref_reads), 
+                    repeat(out_dir), 
+                    repeat(human_readable), 
+                    repeat(allowed_bases))
+        results = pool.map(parallel_func_2_pool, args)
     
+    print(results)
+
     # merge examples
-    while not result_queue.empty():
-        process_examples, process_erroneus_examples = result_queue.get()
-        for key in process_examples:
-            examples[key].append(process_examples[key])
-            erroneous_examples[key].append(process_erroneus_examples[key])
+    #while not result_queue.empty():
+    #    process_examples, process_erroneus_examples = result_queue.get()
+    #    for key in process_examples:
+    #        examples[key].append(process_examples[key])
+    #        erroneous_examples[key].append(process_erroneus_examples[key])
+    #print(result_queue.get())
 
     # wait until all processes are done
-    for p in processes:
-        p.join()
+    #for p in processes:
+    #    p.join()
 
     end = time.time()
     duration = end - start
@@ -726,6 +737,50 @@ def parallel_func_2(results_queue, lines, chunk, image_width, image_height, ref_
                 erroneus_examples[label].append(cropped_msa)
 
     results_queue.put((examples, erroneus_examples))
+
+
+def parallel_func_2_pool(args):
+    lines, chunk, image_width, image_height, ref_reads, out_dir, human_readable, allowed_bases = args
+
+    examples = {i : [] for i in allowed_bases}
+    erroneus_examples = {i : [] for i in allowed_bases}
+
+    for header_line_number in chunk:
+
+        number_rows, number_columns, anchor_in_msa, anchor_in_file, high_quality = [int(i) for i in lines[header_line_number].split(" ")]
+        start_height = header_line_number+1
+        end_height = header_line_number+number_rows+1
+
+        msa_lines = lines[start_height:end_height]
+        anchor_column_index, anchor_sequence = msa_lines[anchor_in_msa].split(" ")
+
+        # Get the reference sequence
+        reference = ref_reads[anchor_in_file].sequence
+        
+        # Create a pytorch tensor encoding the msa from the text file
+        msa = create_msa(msa_lines, number_rows, number_columns)
+
+        # Go over entire anchor sequence and compare it with the reference
+        for i, (b, rb) in enumerate(zip(anchor_sequence, reference)):
+
+            center_index = i + int(anchor_column_index)
+            column = msa[:, :, center_index]
+            base_counts = torch.sum(column, dim=1)
+            consensus_bases = torch.where(base_counts == torch.max(base_counts))
+            if nuc_to_index[b] in consensus_bases:
+                continue
+
+            # Crop the MSA around the currently centered base
+            cropped_msa = crop_msa(msa, image_width, image_height, center_index+1, anchor_in_msa)
+            
+            label = rb
+
+            if b == label:
+                examples[label].append(cropped_msa)
+            else:
+                erroneus_examples[label].append(cropped_msa)
+
+    return (examples, erroneus_examples)
 
 
 class MSADataset(Dataset):
