@@ -6,6 +6,7 @@ import glob
 import torch
 from torch.utils.data import Dataset
 from nucleus.io import fastq
+import multiprocessing
 import pandas as pd
 from PIL import Image
 
@@ -79,7 +80,10 @@ def generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image
 
             # Get relavant information of the MSA from one of many heades in the
             # file encoding the MSAs
-            number_rows, number_columns, anchor_in_msa, anchor_in_file = [int(i) for i in lines[header_line_number].split(" ")]
+            number_rows, number_columns, anchor_in_msa, anchor_in_file, high_quality = [int(i) for i in lines[header_line_number].split(" ")]
+
+            if high_quality:
+                continue
 
             start_height = header_line_number+1
             end_height = header_line_number+number_rows+1
@@ -565,6 +569,163 @@ def save_images(label ,examples, erroneous_examples, out_dir, human_readable):
     for (msa, index) in erroneous_examples:
         file_name = label + "_err_" + str(index) + ".png"
         save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
+
+
+def generate_center_base_train_images_parallel_v3(msa_file_path, ref_fastq_file_path, image_height, image_width, out_dir, workers=1, human_readable=False, verbose=False):
+
+    allowed_bases = "ACGT"
+
+    examples = {i : [] for i in allowed_bases}
+    erroneous_examples = {i : [] for i in allowed_bases}
+
+    num_processes = min(multiprocessing.cpu_count()-1, workers) or 1
+    if verbose:
+        print(f"The data will be generated using {num_processes} parallel processes.")
+
+
+    # -------------- Reading the reference file --------------------------------
+    if verbose:
+        print("Reading the reference file... ")
+    start = time.time()
+    
+    with fastq.FastqReader(ref_fastq_file_path) as reader:
+        ref_reads = [read for read in reader]
+    
+    end = time.time()
+    duration = end - start
+
+    if verbose:
+        print(f"Done. Reading the refernce file took {duration} seconds.")
+
+
+    # -------------- Reading the MSA file --------------------------------------
+    if verbose:
+        print(f"Reading file {msa_file_path}")
+    start = time.time()
+
+    file_ = open(msa_file_path, "r")
+    lines = [line.replace('\n', '') for line in file_]
+    
+    end = time.time()
+    duration = end - start
+
+    if verbose:
+        print(f"Done. Reading the MSA file took {duration} seconds.")
+
+
+    # -------------- Counting MSAs ---------------------------------------------
+    if verbose:
+        print("Counting the MSAs...")
+    start = time.time()
+    
+    reading = True
+    header_line_number = 0
+    header_line_numbers = []
+    million_counter = 0
+
+    while reading:
+
+        if header_line_number >= len(lines):
+            reading = False
+            continue
+
+        if header_line_number >= million_counter*1000000:
+            print(f"Currently at line {header_line_number}")
+            million_counter += 1
+
+        number_rows, number_columns, anchor_in_msa, anchor_in_file, high_quality = [int(i) for i in lines[header_line_number].split(" ")]
+        
+        # Only append the MSA if it is not of high quality
+        if not high_quality:
+            header_line_numbers.append(header_line_number)
+        
+        header_line_number += number_rows + 1
+
+    end = time.time()
+    duration = end - start
+
+    if verbose:
+        print("Done")
+        print(f"There were {len(header_line_numbers)} many MSAs found. Counting the MSAs took {duration} seconds") 
+
+
+    # -------------- Distributing work to multiple processes -------------------
+    if verbose:
+        print("Creating and saving examples...")
+    start = time.time()
+
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    header_line_numbers = header_line_numbers[:2]
+
+    chunk_length = len(header_line_numbers) // num_processes
+    for i in range(0, len(header_line_numbers), chunk_length):
+        chunk = header_line_numbers[i:i+chunk_length]
+        args = (result_queue, lines, chunk, image_width, image_height, ref_reads, out_dir, human_readable, allowed_bases)
+        p = multiprocessing.Process(target=parallel_func_2, args=args)
+        p.start()
+        processes.append(p)
+    
+    # merge examples
+    while not result_queue.empty():
+        process_examples, process_erroneus_examples = result_queue.get()
+        for key in process_examples:
+            examples[key].append(process_examples[key])
+            erroneous_examples[key].append(process_erroneus_examples[key])
+
+    # wait until all processes are done
+    for p in processes:
+        p.join()
+
+    end = time.time()
+    duration = end - start
+
+    if verbose:
+        print(f"Done. Creating and saving the examples took {duration} seconds.")
+
+
+def parallel_func_2(results_queue, lines, chunk, image_width, image_height, ref_reads, out_dir, human_readable, allowed_bases):
+
+    examples = {i : [] for i in allowed_bases}
+    erroneus_examples = {i : [] for i in allowed_bases}
+
+    for header_line_number in chunk:
+
+        number_rows, number_columns, anchor_in_msa, anchor_in_file, high_quality = [int(i) for i in lines[header_line_number].split(" ")]
+        start_height = header_line_number+1
+        end_height = header_line_number+number_rows+1
+
+        msa_lines = lines[start_height:end_height]
+        anchor_column_index, anchor_sequence = msa_lines[anchor_in_msa].split(" ")
+
+        # Get the reference sequence
+        reference = ref_reads[anchor_in_file].sequence
+        
+        # Create a pytorch tensor encoding the msa from the text file
+        msa = create_msa(msa_lines, number_rows, number_columns)
+
+        # Go over entire anchor sequence and compare it with the reference
+        for i, (b, rb) in enumerate(zip(anchor_sequence, reference)):
+
+            center_index = i + int(anchor_column_index)
+            column = msa[:, :, center_index]
+            base_counts = torch.sum(column, dim=1)
+            consensus_bases = torch.where(base_counts == torch.max(base_counts))
+            if nuc_to_index[b] in consensus_bases:
+                continue
+
+            # Crop the MSA around the currently centered base
+            cropped_msa = crop_msa(msa, image_width, image_height, center_index+1, anchor_in_msa)
+            
+            label = rb
+
+            if b == label:
+                examples[label].append(cropped_msa)
+            else:
+                erroneus_examples[label].append(cropped_msa)
+
+    results_queue.put((examples, erroneus_examples))
 
 
 class MSADataset(Dataset):
