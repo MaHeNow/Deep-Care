@@ -228,57 +228,13 @@ def save_images(label ,examples, out_dir, human_readable):
         file_name = label + "_" + str(index) + ".png"
         save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
 
-
-def parallel_func_2_pool(args):
-    lines, chunk, image_width, image_height, ref_reads, out_dir, human_readable, allowed_bases = args
-
-    examples = {i : [] for i in allowed_bases}
-    erroneus_examples = {i : [] for i in allowed_bases}
-
-    for header_line_number in chunk:
-
-        number_rows, number_columns, anchor_in_msa, anchor_in_file, high_quality = [int(i) for i in lines[header_line_number].split(" ")]
-        start_height = header_line_number+1
-        end_height = header_line_number+number_rows+1
-
-        msa_lines = lines[start_height:end_height]
-        anchor_column_index, anchor_sequence = msa_lines[anchor_in_msa].split(" ")
-
-        # Get the reference sequence
-        reference = ref_reads[anchor_in_file].sequence
-        
-        # Create a pytorch tensor encoding the msa from the text file
-        msa = create_msa(msa_lines, number_rows, number_columns)
-
-        # Go over entire anchor sequence and compare it with the reference
-        for i, (b, rb) in enumerate(zip(anchor_sequence, reference)):
-
-            center_index = i + int(anchor_column_index)
-            column = msa[:, :, center_index]
-            base_counts = torch.sum(column, dim=1)
-            consensus_bases = torch.where(base_counts == torch.max(base_counts))
-            if nuc_to_index[b] in consensus_bases:
-                continue
-
-            # Crop the MSA around the currently centered base
-            cropped_msa = crop_msa(msa, image_width, image_height, center_index+1, anchor_in_msa)
-            
-            label = rb
-
-            if b == label:
-                examples[label].append(cropped_msa)
-            else:
-                erroneus_examples[label].append(cropped_msa)
-
-    return (examples, erroneus_examples)
-
-
 class MSADataset(Dataset):
 
     def __init__(self, root_dir, annotation_file, transform=None):
         self.root_dir = root_dir
         self.annotations = pd.read_csv(annotation_file)
         self.transform = transform
+        #print("len: ", len(self.annotations))
 
     def __len__(self):
         return len(self.annotations)
@@ -292,32 +248,3 @@ class MSADataset(Dataset):
             img = self.transform(img)
 
         return (img, y_label)
-
-
-# Examples usage:
-"""
-if __name__ == "__main__":
-    import glob
-
-    msa_data_path = "/home/mnowak/care/care-output/"
-    msa_file_name = "humanchr1430covMSA_*"
-    msa_file_name_pattern = os.path.join(msa_data_path, msa_file_name)
-    msa_file_paths = glob.glob(msa_file_name_pattern)
-
-    fastq_file_path = "/share/errorcorrection/datasets/artmiseqv3humanchr14" # /humanchr1430cov_errFree.fq"
-    fastq_file_name = "humanchr1430cov_errFree.fq.gz"
-    fastq_file = os.path.join(fastq_file_path, fastq_file_name)
-
-    folder_name = "datasets/humanchr1430covMSA_center_base_dataset_w51_h100_n64000_human_readable"
-
-    generate_center_base_train_images(
-            msa_file_paths=msa_file_paths,
-            ref_fastq_file_path=fastq_file,
-            image_height=100,
-            image_width=250,
-            out_dir=folder_name,
-            max_number_examples=64000,
-            human_readable=True,
-            verbose=True
-        )
-"""
