@@ -7,7 +7,7 @@ from deepcare.data import generate_center_base_train_images
 if __name__ == "__main__":
 
 
-    msa_data_path = "/home/mnowak/care/care-output/"
+    msa_data_path = "/home/mnowak/care/care-output2/"
     msa_file_name = "humanchr1430covMSA_1"
     msa_file_name_pattern = os.path.join(msa_data_path, msa_file_name)
     msa_file_paths = glob.glob(msa_file_name_pattern)

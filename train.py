@@ -20,13 +20,13 @@ if __name__ == "__main__":
     batch_size = 256
     shuffle = True
     pin_memory = True
-    num_workers = 1
+    num_workers = 20
     dataset_folder = "datasets"
-    dataset_name = "humanchr1430covMSA_part5_center_base_dataset_w51_h100_n64000_human_readable"
-    validationset_name = "humanchr1430covMSA_part1_center_base_dataset_w51_h100_n24000_human_readable"
+    dataset_name = "humanchr1430covMSA_non_hq_part4_center_base_dataset_w51_h100_n279295_not_human_readable"
+    #validationset_name = "humanchr1430covMSA_part1_center_base_dataset_w51_h100_n24000_human_readable"
     dataset_csv_file = "train_labels.csv"
     model_out_dir = "trained_models"
-    model_name = "conv_net_v4_humanchr1430_center_base_w51_h100_n64000_human_readable_part5"
+    model_name = "conv_net_v4_humanchr1430_center_base_w51_h100_n384000_not_human_readable_part4_non_hq"
 
     # Model
     model = conv_net_w51_h100_v4()
@@ -45,13 +45,13 @@ if __name__ == "__main__":
         transform=transform
         )
     
-    validation_set = MSADataset(
-        root_dir=os.path.join(dataset_folder, validationset_name),
-        annotation_file=os.path.join(dataset_folder, validationset_name, dataset_csv_file),
-        transform=transform
-    )
+    #validation_set = MSADataset(
+    #    root_dir=os.path.join(dataset_folder, validationset_name),
+    #    annotation_file=os.path.join(dataset_folder, validationset_name, dataset_csv_file),
+    #    transform=transform
+    #)
 
-    #train_set, validation_set = torch.utils.data.random_split(dataset,[52000,12000])
+    train_set, validation_set = torch.utils.data.random_split(train_set,[209472, 69824])
     train_loader = DataLoader(dataset=train_set, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers,pin_memory=pin_memory)
     validation_loader = DataLoader(dataset=validation_set, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers, pin_memory=pin_memory)
 
