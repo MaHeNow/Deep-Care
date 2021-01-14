@@ -190,6 +190,49 @@ def conv_net_w51_h100_v4():
     return ConvNetW51H100V4()
 
 
+class ConvNetW51H100V5(nn.Module):
+
+    def __init__(self):
+        super(ConvNetW51H100V5, self).__init__()
+
+        # Convolutional part of the network with batch-normalization inbetween
+        # the convolutional layers
+        self.convolution = nn.Sequential(
+            nn.Conv2d(in_channels=4, out_channel=6, kernel_size=(7,3)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(6),
+            nn.Conv2d(in_channels=6, out_channel=16, kernel_size=(9,5)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(16),
+        )
+
+        # Fully connected dense part of the network with dropout inbetween
+        # the linear layers
+        self.dense = nn.Sequential(
+            nn.Linear(16 * 19 * 10, 120),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.3),
+            nn.Linear(120, 84),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.2),
+            nn.Linear(84, 4)
+        )
+
+
+    def forward(self, x):
+        # Apply convolutional network
+        x = self.convolution(x)
+
+        # Flatten the output of the convolutional layer for the linear layer
+        x = x.view(-1, 16 * 19 * 10)
+ 
+        # Apply the fully connected dense layer and classify the image
+        x = self.dense(x)
+        return x
+
+
+def conv_net_w51_h100_v5():
+    return ConvNetW51H100V5()
+
+
 class ConvNetW250H50V1(nn.Module):
     # 96% Accuracy on unseen data
 
