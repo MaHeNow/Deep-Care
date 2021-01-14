@@ -14,10 +14,10 @@ if __name__ == "__main__":
     device = ("cuda" if torch.cuda.is_available() else "cpu")
     
     dataset_folder = "datasets"
-    dataset_name = "humanchr1430covMSA_non_hq_part3_center_base_dataset_w51_h100_n251585_human_readable"
+    dataset_name = "humanchr1430covMSA_non_hq_part5_center_base_dataset_w51_h100_n512000_not_human_readable"
 
     model_path = "trained_models"
-    model_name = "conv_net_v4_humanchr1430_center_base_w51_h100_human_readable_part_1_2_4_non_hq"
+    model_name = "conv_net_v4_humanchr1430_center_base_w51_h100_n384000_not_human_readable_part4_non_hq"
     model = conv_net_w51_h100_v4()
 
     shuffle = False
