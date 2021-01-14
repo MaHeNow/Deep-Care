@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import Dataset
 from nucleus.io import fastq
 import multiprocessing
-from multiprocessing import get_context
+from multiprocessing import Pool
 from itertools import repeat
 import pandas as pd
 from PIL import Image
@@ -15,10 +15,12 @@ from PIL import Image
 from deepcare.utils.msa import create_msa, crop_msa, get_middle_base, nuc_to_index, save_msa_as_image
 
 
-def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_path, image_height, image_width, out_dir, max_num_examples, workers=1, human_readable=False, verbose=False):
+def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_path, image_height, image_width, out_dir, max_num_examples=None, workers=1, human_readable=False, verbose=False):
 
     allowed_bases = "ACGT"
-    target_num_examples = max_num_examples//(len(allowed_bases))
+    targe_num_examples = -1
+    if max_num_examples != None:
+        target_num_examples = max_num_examples//(len(allowed_bases))
     examples = {i : [] for i in allowed_bases}
 
     num_processes = min(multiprocessing.cpu_count()-1, workers) or 1
@@ -156,7 +158,12 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
 
     
     # -------------- Create the output folder for the datset -------------------
-    if not os.path.exists(out_dir):
+    # determine the minimum number of examples
+    min_num_examples = min([len(item) for key, item in examples.items()])
+    for key in examples:
+        examples[key] = examples[key][:min_num_examples]
+
+    if not os.path.exists(f"{out_dir}_n{min_num_examples}"):
         os.makedirs(out_dir)
 
 
@@ -170,9 +177,9 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
         processes = []
 
         start = time.time()
-        chunk_length =  target_num_examples//num_processes
+        chunk_length =  min_num_examples//num_processes
 
-        for i in range(0, target_num_examples, chunk_length):
+        for i in range(0, min_num_examples, chunk_length):
             examples_chunk = examples[base][i:i+chunk_length]
             args = (base, examples_chunk, out_dir, human_readable)
             p = multiprocessing.Process(target=save_images, args=args)
@@ -227,6 +234,34 @@ def save_images(label ,examples, out_dir, human_readable):
     for (msa, index) in examples:
         file_name = label + "_" + str(index) + ".png"
         save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
+
+
+def bulk_generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image_height, image_width, out_dir, workers=1, human_readable=False, verbose=False):
+    
+    num_processes = min(multiprocessing.cpu_count()-1, workers, len(msa_file_paths)) or 1
+    #TODO: This doesnt work
+    workers = num_processes // len(msa_file_paths)
+    if verbose:
+        print(f"The data will be saved using {num_processes} parallel processes.")
+
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    out_paths = [os.path.join(out_dir, os.path.basename(path)) for path in msa_file_paths]
+
+    start = time.time()
+
+    with Pool(num_processes) as pool:
+        args = zip(msa_file_paths, repeat(ref_fastq_file_path), repeat(image_height), repeat(image_width), out_paths, repeat(400), repeat(workers), repeat(human_readable), repeat(verbose))
+        pool.starmap(generate_center_base_train_images_parallel, args)
+
+    end = time.time()
+    duration = end - start
+    if verbose:
+        print(f"The entire process took {duration} seconds.")
+
+    pass
+
 
 class MSADataset(Dataset):
 
