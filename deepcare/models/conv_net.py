@@ -198,9 +198,9 @@ class ConvNetW51H100V5(nn.Module):
         # Convolutional part of the network with batch-normalization inbetween
         # the convolutional layers
         self.convolution = nn.Sequential(
-            nn.Conv2d(in_channels=4, out_channel=6, kernel_size=(7,3)),
+            nn.Conv2d(in_channels=4, out_channels=6, kernel_size=(7,3)),
             nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(6),
-            nn.Conv2d(in_channels=6, out_channel=16, kernel_size=(9,5)),
+            nn.Conv2d(in_channels=6, out_channels=16, kernel_size=(9,5)),
             nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(16),
         )
 
