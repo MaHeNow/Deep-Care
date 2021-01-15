@@ -18,7 +18,7 @@ from deepcare.utils.msa import create_msa, crop_msa, get_middle_base, nuc_to_ind
 def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_path, image_height, image_width, out_dir, max_num_examples=None, workers=1, human_readable=False, verbose=False):
 
     allowed_bases = "ACGT"
-    targe_num_examples = -1
+    target_num_examples = -1
     if max_num_examples != None:
         target_num_examples = max_num_examples//(len(allowed_bases))
     examples = {i : [] for i in allowed_bases}
@@ -163,7 +163,8 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
     for key in examples:
         examples[key] = examples[key][:min_num_examples]
 
-    if not os.path.exists(f"{out_dir}_n{min_num_examples}"):
+    out_dir = f"{out_dir}_n{min_num_examples}"
+    if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
 
