@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 import pandas as pd
 
 from deepcare.data import MSADataset
-from deepcare.models.conv_net import conv_net_w51_h100_v1, conv_net_w51_h100_v3, conv_net_w51_h100_v4, conv_net_w51_h100_v5,conv_net_w250_h50_v1, conv_net_w250_h50_v3
+from deepcare.models.conv_net import conv_net_w51_h100_v1, conv_net_w51_h100_v3, conv_net_w51_h100_v4, conv_net_w51_h100_v5, conv_net_w250_h50_v1, conv_net_w250_h50_v3
 from deepcare.utils.accuracy import check_accuracy, check_accuracy_on_classes
 
 
@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
 
     # -------------- Hyperparameters -------------------------------------------
-    num_epochs = 10
+    num_epochs = 150
     learning_rate = 0.00001
     batch_size = 256
     shuffle = True
@@ -31,16 +31,16 @@ if __name__ == "__main__":
     # -------------- File structure --------------------------------------------
     dataset_folder = "datasets"
     dataset_name = "humanchr1430covMSA_non_hq_part4_center_base_dataset_w51_h100_n279295_not_human_readable"
-    validationset_name = "" #"humanchr1430covMSA_part1_center_base_dataset_w51_h100_n24000_human_readable"
+    validationset_name = "humanchr1430covMSA_non_hq_part5_center_base_dataset_w51_h100_n512000_not_human_readable"
     validation_split = 0.25
     dataset_csv_file = "train_labels.csv"
     
-    model_out_dir = "trained_models/conv_net_v4_humanchr1430_center_base_w51_h100_n384000_not_human_readable"
-    model_name = "conv_net_v4_state_dict"
+    model_out_dir = "trained_models/conv_net_v5/humanchr1430_center_base_w51_h100_not_human_readable"
+    model_name = "conv_net_v5_state_dict"
 
 
     # -------------- Preparing the Model ---------------------------------------
-    model = conv_net_w51_h100_v4()
+    model = conv_net_w51_h100_v5()
     model.to(device)
 
 
@@ -113,13 +113,11 @@ if __name__ == "__main__":
         val_losses = []
         
         epoch_start_time = time.time()
-        for ((data, targets), (val_data, val_targets)) in zip(train_loader, validation_loader):
+        for (data, targets) in train_loader:
+
             # get data to cuda if possible
             data = data.to(device=device)
             targets = targets.to(device=device)
-
-            val_data = val_data.to(device=device)
-            val_targets = val_targets.to(device=device)
             
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -128,11 +126,6 @@ if __name__ == "__main__":
             scores = model(data)
             loss = criterion(scores, targets)
             losses.append(loss.item())
-
-            # test the validation data for further analysis
-            val_scores = model(val_data)
-            val_loss = criterion(scores, targets)
-            val_losses.append(val_loss.item())
             
             # backward
             loss.backward()
@@ -141,6 +134,23 @@ if __name__ == "__main__":
             optimizer.step()
         
         epoch_end_time = time.time()
+
+        model.eval()
+        
+        for (val_data, val_targets) in validation_loader:
+
+
+            val_data = val_data.to(device=device)
+            val_targets = val_targets.to(device=device)
+
+            # test the validation data for further analysis
+            val_scores = model(val_data)
+            val_loss = criterion(scores, targets)
+            val_losses.append(val_loss.item())
+
+        model.train()
+
+        
         epoch_duration = epoch_end_time - epoch_start_time
         loss_at_epoch = sum(losses)/len(losses)
         val_loss_at_epoch = sum(val_losses)/len(val_losses)
@@ -151,7 +161,8 @@ if __name__ == "__main__":
         training_df_data["validation_loss"].append(val_loss_at_epoch)
         training_df_data["training_time"].append(epoch_duration)
 
-        print(f'Cost at epoch {epoch} is {sum(losses)/len(losses)}. Training the epoch took {epoch_duration} seconds.')
+        print(f'Loss at epoch {epoch} is {sum(losses)/len(losses)}. Training the epoch took {epoch_duration} seconds.')
+        print(f"Validation loss is {val_loss_at_epoch}.")
 
         if (epoch+1) % 20 == 0:
             print(f"Accuracy on the validation set after epoch {epoch}:") 
@@ -167,7 +178,7 @@ if __name__ == "__main__":
     print("Checking accuracy on Training Set")
     check_accuracy_on_classes(train_loader, model, device)
 
-    print("Checking accuracy on Test Set")
+    print("Checking accuracy on Validation Set")
     check_accuracy_on_classes(validation_loader, model, device)
 
     # Create the output directory if it does not exist yet
