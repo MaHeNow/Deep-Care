@@ -9,7 +9,16 @@ from torch.utils.data import DataLoader
 import pandas as pd
 
 from deepcare.data import MSADataset
-from deepcare.models.conv_net import conv_net_w51_h100_v1, conv_net_w51_h100_v3, conv_net_w51_h100_v4, conv_net_w51_h100_v5, conv_net_w250_h50_v1, conv_net_w250_h50_v3
+from deepcare.models.conv_net import \
+    conv_net_w51_h100_v1, \
+    conv_net_w51_h100_v3, \
+    conv_net_w51_h100_v4, \
+    conv_net_w51_h100_v5, \
+    conv_net_w51_h100_v6, \
+    conv_net_w51_h100_v7, \
+    conv_net_w51_h100_v8, \
+    conv_net_w250_h50_v1, \
+    conv_net_w250_h50_v3
 from deepcare.utils.accuracy import check_accuracy, check_accuracy_on_classes
 
 
@@ -20,7 +29,7 @@ if __name__ == "__main__":
 
 
     # -------------- Hyperparameters -------------------------------------------
-    num_epochs = 150
+    num_epochs = 200
     learning_rate = 0.00001
     batch_size = 256
     shuffle = True
@@ -29,18 +38,18 @@ if __name__ == "__main__":
 
 
     # -------------- File structure --------------------------------------------
-    dataset_folder = "datasets"
-    dataset_name = "humanchr1430covMSA_non_hq_part4_center_base_dataset_w51_h100_n279295_not_human_readable"
-    validationset_name = "humanchr1430covMSA_non_hq_part5_center_base_dataset_w51_h100_n512000_not_human_readable"
+    dataset_folder = "datasets/center_base/w51_h100/not_human_readable/humanchr1430covMSA"
+    dataset_name = "part_7_n61307"
+    validationset_name = "part_8_n244828"
     validation_split = 0.25
     dataset_csv_file = "train_labels.csv"
     
-    model_out_dir = "trained_models/conv_net_v5/humanchr1430_center_base_w51_h100_not_human_readable"
-    model_name = "conv_net_v5_state_dict"
+    model_out_dir = "trained_models/conv_net_v8/humanchr1430_center_base_w51_h100_not_human_readable"
+    model_name = "conv_net_v8_state_dict"
 
 
     # -------------- Preparing the Model ---------------------------------------
-    model = conv_net_w51_h100_v5()
+    model = conv_net_w51_h100_v8()
     model.to(device)
 
 
@@ -137,16 +146,17 @@ if __name__ == "__main__":
 
         model.eval()
         
-        for (val_data, val_targets) in validation_loader:
+        with torch.no_grad():
+            for (val_data, val_targets) in validation_loader:
 
 
-            val_data = val_data.to(device=device)
-            val_targets = val_targets.to(device=device)
+                val_data = val_data.to(device=device)
+                val_targets = val_targets.to(device=device)
 
-            # test the validation data for further analysis
-            val_scores = model(val_data)
-            val_loss = criterion(scores, targets)
-            val_losses.append(val_loss.item())
+                # test the validation data for further analysis
+                val_scores = model(val_data)
+                val_loss = criterion(scores, targets)
+                val_losses.append(val_loss.item())
 
         model.train()
 

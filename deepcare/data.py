@@ -103,15 +103,12 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
 
     for header_line_number in header_line_numbers:
 
-        target_examples_reached = min([len(l) for l in examples.values()]) == target_num_examples
+        target_examples_reached = min([len(item) for key, item in examples.items()]) == target_num_examples
 
-        # Termination conditions for inner loop
         if target_examples_reached:
             reading = False
-            break
-
-        if header_line_number >= len(lines):
-            reading = False
+            if verbose:
+                print("Target number examples reached.")
             break
 
         # Get relavant information of the MSA from one of many heades in the
@@ -133,7 +130,7 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
         # Go over entire anchor sequence and compare it with the reference
         for i, (b, rb) in enumerate(zip(anchor_sequence, reference)):
 
-            if len(examples[rb]) >= target_num_examples:
+            if len(examples[rb]) >= target_num_examples and target_num_examples > 0:
                 continue
 
             center_index = i + int(anchor_column_index)
@@ -149,6 +146,9 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
             label = rb
 
             examples[label].append((cropped_msa, len(examples[rb])))
+    
+    if reading:
+        print("Reached end of MSA file.")
 
     end = time.time()
     duration = end - start
@@ -163,22 +163,26 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
     for key in examples:
         examples[key] = examples[key][:min_num_examples]
 
-    out_dir = f"{out_dir}_n{min_num_examples}"
+    out_dir = f"{out_dir}_n{4*min_num_examples}"
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
+    if verbose:
+        print(f"Number examples per class: {min_num_examples}.")
 
 
     # -------------- Saving examples -------------------------------------------
     if verbose:
         print("Saving examples.")
     start = time.time()
-    
+    chunk_length =  min_num_examples//num_processes
+    if verbose:
+        print(f"Saving chunk size per process: {chunk_length}")
+
     for base in allowed_bases:
 
         processes = []
 
         start = time.time()
-        chunk_length =  min_num_examples//num_processes
 
         for i in range(0, min_num_examples, chunk_length):
             examples_chunk = examples[base][i:i+chunk_length]
