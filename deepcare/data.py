@@ -130,6 +130,9 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
         # Go over entire anchor sequence and compare it with the reference
         for i, (b, rb) in enumerate(zip(anchor_sequence, reference)):
 
+            if not rb in allowed_bases:
+                continue
+
             if len(examples[rb]) >= target_num_examples and target_num_examples > 0:
                 continue
 
