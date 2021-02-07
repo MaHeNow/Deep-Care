@@ -14,6 +14,9 @@ from deepcare.models.conv_net import \
     conv_net_w51_h100_v5, \
     conv_net_w51_h100_v6, \
     conv_net_w51_h100_v7, \
+    conv_net_w51_h100_v8, \
+    conv_net_w51_h100_v9, \
+    conv_net_w51_h100_v10, \
     conv_net_w250_h50_v1
 
 
@@ -21,12 +24,12 @@ if __name__ == "__main__":
 
     device = ("cuda" if torch.cuda.is_available() else "cpu")
     
-    dataset_folder = "datasets/w51_h100/humanchr1430covMSA"
-    dataset_name = "part_2_n243432"
+    dataset_folder = "datasets/w51_h100/arthiseq2000melanogaster30covMSA/"
+    dataset_name = "part_2_n120580"
 
     model_path = "trained_models"
-    model_name = "conv_net_v4_humanchr1430_center_base_w51_h100_human_readable_part_1_2_4_non_hq"
-    model = conv_net_w51_h100_v4()
+    model_name = "conv_net_v10_w51_h100/AthalianaElegansMix/conv_net_v10_state_dict"
+    model = conv_net_w51_h100_v10()
 
     shuffle = False
     batch_size = 256
