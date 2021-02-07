@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 import pandas as pd
 
 from deepcare.data import MSADataset
@@ -17,6 +18,8 @@ from deepcare.models.conv_net import \
     conv_net_w51_h100_v6, \
     conv_net_w51_h100_v7, \
     conv_net_w51_h100_v8, \
+    conv_net_w51_h100_v9, \
+    conv_net_w51_h100_v10, \
     conv_net_w250_h50_v1, \
     conv_net_w250_h50_v3
 from deepcare.utils.accuracy import check_accuracy, check_accuracy_on_classes
@@ -29,27 +32,26 @@ if __name__ == "__main__":
 
 
     # -------------- Hyperparameters -------------------------------------------
-    num_epochs = 200
+    num_epochs = 80
     learning_rate = 0.00001
-    batch_size = 256
+    batch_size = 4096
     shuffle = True
     pin_memory = True
-    num_workers = 20
+    num_workers = 60
 
 
     # -------------- File structure --------------------------------------------
-    dataset_folder = "datasets/center_base/w51_h100/not_human_readable/humanchr1430covMSA"
-    dataset_name = "part_7_n61307"
-    validationset_name = "part_8_n244828"
+    dataset_folder = "datasets/w51_h100"
+    dataset_name = "artmiseqv3humanchr1430covMSA_defragmented"
+    validationset_name = "arthiseq2000melanogaster30covMSA/part_0_n124372"
     validation_split = 0.25
     dataset_csv_file = "train_labels.csv"
     
-    model_out_dir = "trained_models/conv_net_v8/humanchr1430_center_base_w51_h100_not_human_readable"
-    model_name = "conv_net_v8_state_dict"
-
+    model_out_dir = "trained_models/conv_net_v9_w51_h100/LargeHmnChr14DSet/"
+    model_name = "conv_net_v9_state_dict"
 
     # -------------- Preparing the Model ---------------------------------------
-    model = conv_net_w51_h100_v8()
+    model = conv_net_w51_h100_v9()
     model.to(device)
 
 
@@ -60,14 +62,14 @@ if __name__ == "__main__":
 
     # -------------- Evaluation Dataframes -------------------------------------
     meta_df_data = {
-        "Category" : ["Epochs", "Optimizer", "Criteroin", "Batch Size", "Learning Rate", "Shuffle", "Pin Memory", "Number Workers"],
-        "Value" : [num_epochs, str(optimizer).replace("\n", ""), str(criterion), batch_size, learning_rate, shuffle, pin_memory, num_workers]
+        "Category" : ["Epochs", "Optimizer", "Criteroin", "Batch Size", "Learning Rate", "Shuffle", "Pin Memory", "Number Workers", "Dataset Path"],
+        "Value" : [num_epochs, str(optimizer).replace("\n", ""), str(criterion), batch_size, learning_rate, shuffle, pin_memory, num_workers, os.path.join(dataset_folder, dataset_name)]
         }
     columns=["epoch", "training_loss", "validation_loss", "training_time"]
     training_df_data = {column : [] for column in columns}
 
 
-    # -------------- Trandformation for the Datasets
+    # -------------- Trandformation for the Datasets ---------------------------
     transform = transforms.Compose([
                 transforms.ToTensor(),
                 transforms.Normalize((0.5, 0.5, 0.5, 0.5), (0.5, 0.5, 0.5, 0.5)),
@@ -122,7 +124,7 @@ if __name__ == "__main__":
         val_losses = []
         
         epoch_start_time = time.time()
-        for (data, targets) in train_loader:
+        for (data, targets) in tqdm(train_loader, ascii=True, desc=f"Epoch: {epoch}"):
 
             # get data to cuda if possible
             data = data.to(device=device)
@@ -144,26 +146,29 @@ if __name__ == "__main__":
         
         epoch_end_time = time.time()
 
-        model.eval()
         
-        with torch.no_grad():
-            for (val_data, val_targets) in validation_loader:
+        if (epoch+1) % 10 == 0:
+            model.eval()
+            with torch.no_grad():
+                for (val_data, val_targets) in tqdm(validation_loader, ascii=True, desc=f"Validation Epoch: {epoch}"):
 
+                    val_data = val_data.to(device=device)
+                    val_targets = val_targets.to(device=device)
 
-                val_data = val_data.to(device=device)
-                val_targets = val_targets.to(device=device)
+                    # test the validation data for further analysis
+                    val_scores = model(val_data)
+                    val_loss = criterion(scores, targets)
+                    val_losses.append(val_loss.item())
 
-                # test the validation data for further analysis
-                val_scores = model(val_data)
-                val_loss = criterion(scores, targets)
-                val_losses.append(val_loss.item())
+            model.train()
+            val_loss_at_epoch = sum(val_losses)/len(val_losses)
 
-        model.train()
+        else:
 
+            val_loss_at_epoch = 0
         
         epoch_duration = epoch_end_time - epoch_start_time
         loss_at_epoch = sum(losses)/len(losses)
-        val_loss_at_epoch = sum(val_losses)/len(val_losses)
 
         # Add new entries for the training dataframe
         training_df_data["epoch"].append(epoch)
@@ -174,9 +179,6 @@ if __name__ == "__main__":
         print(f'Loss at epoch {epoch} is {sum(losses)/len(losses)}. Training the epoch took {epoch_duration} seconds.')
         print(f"Validation loss is {val_loss_at_epoch}.")
 
-        if (epoch+1) % 20 == 0:
-            print(f"Accuracy on the validation set after epoch {epoch}:") 
-            check_accuracy(validation_loader, model, device)
 
     end_time = time.time()
     duration = end_time - start_time
@@ -186,10 +188,10 @@ if __name__ == "__main__":
     print(f"Finished training. The process took {duration} seconds.")    
 
     print("Checking accuracy on Training Set")
-    check_accuracy_on_classes(train_loader, model, device)
+    check_accuracy(train_loader, model, device)
 
     print("Checking accuracy on Validation Set")
-    check_accuracy_on_classes(validation_loader, model, device)
+    check_accuracy(validation_loader, model, device)
 
     # Create the output directory if it does not exist yet
     if not os.path.exists(model_out_dir):
