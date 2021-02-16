@@ -205,3 +205,9 @@ if __name__ == "__main__":
     meta_df = pd.DataFrame(meta_df_data)
     training_df.to_csv(os.path.join(model_out_dir, "training_data.csv"), index = False, header=True)
     meta_df.to_csv(os.path.join(model_out_dir, "meta_data.csv"), index = False, header=True)
+
+    # Save the model for later usage with the LibTorch library
+    model.eval()
+
+    script_module = torch.jit.script(model)
+    script_module.save(os.path.join(model_out_dir, "script_module.pt"))
