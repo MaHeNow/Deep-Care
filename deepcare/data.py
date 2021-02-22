@@ -20,8 +20,9 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
     allowed_bases = "ACGT"
     target_num_examples = -1
     if max_num_examples != None:
-        target_num_examples = max_num_examples//(len(allowed_bases))
-    examples = {i : [] for i in allowed_bases}
+        target_num_examples = max_num_examples//(2*len(allowed_bases))
+    consenus_examples = {i : [] for i in allowed_bases}
+    non_consenus_examples = {i : [] for i in allowed_bases}
 
     num_processes = min(multiprocessing.cpu_count()-1, workers) or 1
     if verbose:
@@ -103,7 +104,10 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
 
     for header_line_number in header_line_numbers:
 
-        target_examples_reached = min([len(item) for key, item in examples.items()]) == target_num_examples
+        target_examples_reached = min(
+                min([len(item) for key, item in consenus_examples.items()]),
+                min([len(item) for key, item in non_consenus_examples.items()])
+            ) == target_num_examples
 
         if target_examples_reached:
             reading = False
@@ -133,10 +137,8 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
             if not rb in allowed_bases:
                 continue
 
-            if len(examples[rb]) >= target_num_examples and target_num_examples > 0:
-                continue
-
             center_index = i + int(anchor_column_index)
+            # TODO: Der Konesnus wird hier nicht von dem geslicten MSA betrachtet, das könnte man noch verbessern
             column = msa[:, :, center_index]
             base_counts = torch.sum(column, dim=1)
             consensus_bases = torch.where(base_counts == torch.max(base_counts))[0]
@@ -144,11 +146,21 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
             if nuc_index in consensus_bases:
                 continue
 
+            label = rb
+            label_is_consensus = nuc_to_index[label] in consensus_bases
+
+            if len(consenus_examples[rb]) >= target_num_examples and label_is_consensus and target_num_examples > 0:
+                continue
+            if len(non_consenus_examples[rb]) >= target_num_examples and not label_is_consensus and target_num_examples > 0:
+                continue
+            
             # Crop the MSA round the currently centered base
             cropped_msa = crop_msa(msa, image_width, image_height, center_index+1, anchor_in_msa)
-            label = rb
 
-            examples[label].append((cropped_msa, len(examples[rb])))
+            if label_is_consensus:
+                consenus_examples[label].append((cropped_msa, len(consenus_examples[label])))
+            else:
+                non_consenus_examples[label].append((cropped_msa, len(non_consenus_examples[label])))
     
     if reading:
         print("Reached end of MSA file.")
@@ -162,11 +174,15 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
     
     # -------------- Create the output folder for the datset -------------------
     # determine the minimum number of examples
-    min_num_examples = min([len(item) for key, item in examples.items()])
-    for key in examples:
-        examples[key] = examples[key][:min_num_examples]
+    min_num_examples = min(
+        min([len(item) for key, item in consenus_examples.items()]),
+        min([len(item) for key, item in non_consenus_examples.items()])
+    )
+    for base in allowed_bases:
+        consenus_examples[base] = consenus_examples[base][:min_num_examples]
+        non_consenus_examples[base] = non_consenus_examples[base][:min_num_examples]
 
-    out_dir = f"{out_dir}_n{4*min_num_examples}"
+    out_dir = f"{out_dir}_n{8*min_num_examples}"
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     if verbose:
@@ -177,7 +193,7 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
     if verbose:
         print("Saving examples.")
     start = time.time()
-    chunk_length =  min_num_examples//num_processes
+    chunk_length =  2*min_num_examples//num_processes
     if verbose:
         print(f"Saving chunk size per process: {chunk_length}")
 
@@ -188,8 +204,16 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
         start = time.time()
 
         for i in range(0, min_num_examples, chunk_length):
-            examples_chunk = examples[base][i:i+chunk_length]
-            args = (base, examples_chunk, out_dir, human_readable)
+            examples_chunk = consenus_examples[base][i:i+chunk_length]
+            args = (base, examples_chunk, 'cons', out_dir, human_readable)
+            p = multiprocessing.Process(target=save_images, args=args)
+            p.start()
+            processes.append(p)
+        
+
+        for i in range(0, min_num_examples, chunk_length):
+            examples_chunk = non_consenus_examples[base][i:i+chunk_length]
+            args = (base, examples_chunk, 'non_cons', out_dir, human_readable)
             p = multiprocessing.Process(target=save_images, args=args)
             p.start()
             processes.append(p)
@@ -237,38 +261,11 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
         print(f"Done. Creating the annotation file took {duration} seconds.")
 
 
-def save_images(label ,examples, out_dir, human_readable):
+def save_images(label, examples, name_annotation, out_dir, human_readable):
 
     for (msa, index) in examples:
-        file_name = label + "_" + str(index) + ".png"
+        file_name = f"{label}_{name_annotation}_{index}.png"
         save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
-
-
-def bulk_generate_center_base_train_images(msa_file_paths, ref_fastq_file_path, image_height, image_width, out_dir, workers=1, human_readable=False, verbose=False):
-    
-    num_processes = min(multiprocessing.cpu_count()-1, workers, len(msa_file_paths)) or 1
-    #TODO: This doesnt work
-    workers = num_processes // len(msa_file_paths)
-    if verbose:
-        print(f"The data will be saved using {num_processes} parallel processes.")
-
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    out_paths = [os.path.join(out_dir, os.path.basename(path)) for path in msa_file_paths]
-
-    start = time.time()
-
-    with Pool(num_processes) as pool:
-        args = zip(msa_file_paths, repeat(ref_fastq_file_path), repeat(image_height), repeat(image_width), out_paths, repeat(400), repeat(workers), repeat(human_readable), repeat(verbose))
-        pool.starmap(generate_center_base_train_images_parallel, args)
-
-    end = time.time()
-    duration = end - start
-    if verbose:
-        print(f"The entire process took {duration} seconds.")
-
-    pass
 
 
 class MSADataset(Dataset):
