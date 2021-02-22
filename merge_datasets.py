@@ -13,25 +13,9 @@ if __name__ == "__main__":
 
     global_start = time.time()
 
-    folder_paths = [
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000athaliana30covMSACopy/part_8_n146476",
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000athaliana30covMSACopy/part_9_n154748",
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000athaliana30covMSACopy/part_10_n173860",
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000athaliana30covMSACopy/part_11_n160164",
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000athaliana30covMSACopy/part_12_n157776",
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000athaliana30covMSACopy/part_13_n177008",
+    folder_paths = glob.glob("datasets/w51_h100/balance_test_4_artmiseqv3humanchr1430covMSA_Copy/*")
 
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000elegans30covMSACopy/part_0_n111796",
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000elegans30covMSACopy/part_1_n133332",
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000elegans30covMSACopy/part_2_n127408",
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000elegans30covMSACopy/part_3_n123220",
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000elegans30covMSACopy/part_4_n128880",
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000elegans30covMSACopy/part_5_n99404",
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000elegans30covMSACopy/part_6_n132720",
-        "/home/mnowak/deepcare/datasets/w51_h100/arthiseq2000elegans30covMSACopy/part_19_n114232"
-    ]
-
-    result_folder_path = "datasets/w51_h100/arthiseq2000AthalianaElegansMix_970032_970992_30covMSA"
+    result_folder_path = "datasets/w51_h100/balanced_artmiseqv3humanchr1430covMSA"
     #workers = 40
 
     bases = "ACGT"
@@ -54,8 +38,13 @@ if __name__ == "__main__":
 
         for i, image in tqdm(enumerate(images)):
 
-            label = os.path.basename(image)[:1]
-            new_name = f"{label}_{counter[label]}.png"
+            elements = os.path.basename(image).split("_")
+            label = elements[0]
+            if len(elements) == 4:
+                annotation = f"{elements[1]}_{elements[2]}"
+            else:
+                annotation = elements[1]
+            new_name = f"{label}_{annotation}_{counter[label]}.png"
             new_path = os.path.join(result_folder_path, new_name)
             shutil.move(image, new_path)
 

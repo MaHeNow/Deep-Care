@@ -20,6 +20,7 @@ from deepcare.models.conv_net import \
     conv_net_w51_h100_v8, \
     conv_net_w51_h100_v9, \
     conv_net_w51_h100_v10, \
+    conv_net_w51_h100_v11, \
     conv_net_w250_h50_v1, \
     conv_net_w250_h50_v3
 from deepcare.utils.accuracy import check_accuracy, check_accuracy_on_classes
@@ -29,29 +30,30 @@ if __name__ == "__main__":
 
     # Check if training on the GPU is possible
     device = ("cuda" if torch.cuda.is_available() else "cpu")
+    #torch.cuda.empty_cache()
 
 
     # -------------- Hyperparameters -------------------------------------------
-    num_epochs = 80
+    num_epochs = 60
     learning_rate = 0.00001
-    batch_size = 4096
+    batch_size = 2048
     shuffle = True
     pin_memory = True
-    num_workers = 60
+    num_workers = 70
 
 
     # -------------- File structure --------------------------------------------
     dataset_folder = "datasets/w51_h100"
-    dataset_name = "artmiseqv3humanchr1430covMSA_defragmented"
-    validationset_name = "arthiseq2000melanogaster30covMSA/part_0_n124372"
-    validation_split = 0.25
+    dataset_name = "balanced_artmiseqv3humanchr1430covMSA"
+    validationset_name = ""
+    validation_split = 0.20
     dataset_csv_file = "train_labels.csv"
     
-    model_out_dir = "trained_models/conv_net_v9_w51_h100/LargeHmnChr14DSet/"
-    model_name = "conv_net_v9_state_dict"
+    model_out_dir = "trained_models/conv_net_v11_w51_h100/BalancedHmnChr14DSet/"
+    model_name = "conv_net_v11_state_dict"
 
     # -------------- Preparing the Model ---------------------------------------
-    model = conv_net_w51_h100_v9()
+    model = conv_net_w51_h100_v11()
     model.to(device)
 
 
