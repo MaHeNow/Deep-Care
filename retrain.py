@@ -8,28 +8,35 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
 from deepcare.data import MSADataset
-from deepcare.models.conv_net import conv_net_w51_h100_v1, conv_net_w51_h100_v3, conv_net_w51_h100_v4, conv_net_w250_h50_v1, conv_net_w250_h50_v2
+from deepcare.models.conv_net import conv_net_w51_h100_v1, conv_net_w51_h100_v3, conv_net_w51_h100_v4, conv_net_w250_h50_v1, conv_net_w250_h50_v3
 from deepcare.utils.accuracy import check_accuracy, check_accuracy_on_classes
 
 if __name__ == "__main__":
 
     device = ("cuda" if torch.cuda.is_available() else "cpu")
 
-    num_epochs = 200
+    num_epochs = 180
     learning_rate = 0.00001
     batch_size = 256
     shuffle = True
     pin_memory = True
-    num_workers = 1
+    num_workers = 20
+    
     dataset_folder = "datasets"
-    dataset_name = "humanchr1430covMSA_part_7_9_center_base_dataset_w250_h50_n64000_human_readable"
-    validationset_name = "humanchr1430covMSA_part5_center_base_dataset_w51_h100_n64000_human_readable"
+    dataset_name = "humanchr1430covMSA_non_hq_part4_center_base_dataset_w51_h100_n279296_human_readable"
+    validationset_name = "humanchr1430covMSA_non_hq_part3_center_base_dataset_w51_h100_n512000_human_readable"
+    
     dataset_csv_file = "train_labels.csv"
+    
     model_out_dir = "trained_models"
-    model_name = "conv_net_v2_humanchr1430_center_base_w250_h50_n64000_human_readable"
+    model_out_name = "conv_net_v4_humanchr1430_center_base_w51_h100_human_readable_part_1_2_4_non_hq"
+    model_path = "trained_models"
+    model_name = "conv_net_v4_humanchr1430_center_base_w51_h100_human_readable_part_1_2_non_hq"
 
     # Model
-    model = conv_net_w250_h50_v2()
+    model = conv_net_w51_h100_v4()
+    state_dict = torch.load(os.path.join(model_path, model_name))
+    model.load_state_dict(state_dict)
     model.to(device)
 
     transform = transforms.Compose(
@@ -39,7 +46,7 @@ if __name__ == "__main__":
             ]
         )
 
-    dataset = MSADataset(
+    train_set = MSADataset(
         root_dir=os.path.join(dataset_folder, dataset_name),
         annotation_file=os.path.join(dataset_folder, dataset_name, dataset_csv_file),
         transform=transform
@@ -51,7 +58,7 @@ if __name__ == "__main__":
     #    transform=transform
     #)
 
-    train_set, validation_set = torch.utils.data.random_split(dataset,[52000,12000])
+    train_set, validation_set = torch.utils.data.random_split(train_set,[209472,69824])
     train_loader = DataLoader(dataset=train_set, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers,pin_memory=pin_memory)
     validation_loader = DataLoader(dataset=validation_set, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers, pin_memory=pin_memory)
 
@@ -89,7 +96,7 @@ if __name__ == "__main__":
         epoch_duration = epoch_end_time - epoch_start_time
         print(f'Cost at epoch {epoch} is {sum(losses)/len(losses)}. Training the epoch took {epoch_duration} seconds.')
 
-        if (epoch+1) % 10 == 0:
+        if (epoch+1) % 40 == 0:
             print(f"Accuracy on the validation set after epoch {epoch}:") 
             check_accuracy(validation_loader, model, device)
 
@@ -107,4 +114,4 @@ if __name__ == "__main__":
     if not os.path.exists(model_out_dir):
         os.makedirs(model_out_dir)
 
-    torch.save(model.state_dict(), os.path.join(model_out_dir, model_name))
+    torch.save(model.state_dict(), os.path.join(model_out_dir, model_out_name))
