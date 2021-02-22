@@ -453,6 +453,61 @@ def conv_net_w51_h100_v10():
     return ConvNetW51H100V10()
 
 
+class ConvNetW51H100V11(nn.Module):
+
+    def __init__(self):
+        super(ConvNetW51H100V11, self).__init__()
+
+        # Convolutional part of the network with batch-normalization inbetween
+        # the convolutional layers
+        self.convolution = nn.Sequential(
+            nn.Conv2d(in_channels=4, out_channels=48, kernel_size=(3,3)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(48),
+            nn.Conv2d(in_channels=48, out_channels=64, kernel_size=(4,4)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+            nn.Conv2d(in_channels=64, out_channels=256, kernel_size=(4,4)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(256),
+            nn.Conv2d(in_channels=256, out_channels=384, kernel_size=(4,4)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(384),
+            nn.Conv2d(in_channels=384, out_channels=384, kernel_size=(5,5)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(384),
+        )
+
+        # Fully connected dense part of the network with dropout inbetween
+        # the linear layers
+        self.dense = nn.Sequential(
+            nn.Linear(384 * 18 * 5, 500),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(500, 200),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(200, 84),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.2),
+            nn.Linear(84, 32),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.1),
+            nn.Linear(32, 4)
+        )
+
+
+    def forward(self, x):
+        # Apply convolutional network
+        x = self.convolution(x)
+
+        # Flatten the output of the convolutional layer for the linear layer
+        x = x.view(-1, 384 * 18 * 5)
+ 
+        # Apply the fully connected dense layer and classify the image
+        x = self.dense(x)
+        return x
+
+
+def conv_net_w51_h100_v11():
+    return ConvNetW51H100V11()
+
+
 class ConvNetW250H50V1(nn.Module):
     # 96% Accuracy on unseen data
 
