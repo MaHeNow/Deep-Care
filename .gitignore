@@ -7,3 +7,4 @@
 /old_trained_models
 /trained_models
 playground.py
+*.pt
