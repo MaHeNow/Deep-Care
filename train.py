@@ -22,7 +22,15 @@ from deepcare.models.conv_net import \
     conv_net_w51_h100_v10, \
     conv_net_w51_h100_v11, \
     conv_net_w250_h50_v1, \
-    conv_net_w250_h50_v3
+    conv_net_w250_h50_v3, \
+    conv_net_w224_h224_v1, \
+    conv_net_w224_h224_v2, \
+    conv_net_w224_h224_v3, \
+    conv_net_w224_h224_v4, \
+    conv_net_w224_h224_v5, \
+    conv_net_w224_h224_v6, \
+    conv_net_w451_h221_v1
+
 from deepcare.utils.accuracy import check_accuracy, check_accuracy_on_classes
 
 
@@ -30,30 +38,40 @@ if __name__ == "__main__":
 
     # Check if training on the GPU is possible
     device = ("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using {device}")
     #torch.cuda.empty_cache()
 
 
     # -------------- Hyperparameters -------------------------------------------
-    num_epochs = 60
+    num_epochs = 5
     learning_rate = 0.00001
-    batch_size = 2048
+    batch_size = 150
     shuffle = True
     pin_memory = True
-    num_workers = 70
+    num_workers = 60
 
 
     # -------------- File structure --------------------------------------------
-    dataset_folder = "datasets/w51_h100"
-    dataset_name = "balanced_artmiseqv3humanchr1430covMSA"
-    validationset_name = ""
+    dataset_folder = "datasets/w451_h221"
+    dataset_name = "artmiseqv3humanchr1430covMSATraining_1/examples"
+    validationset_name = "artmiseqv3humanchr1430covMSAValidation_1/examples"
     validation_split = 0.20
-    dataset_csv_file = "train_labels.csv"
-    
-    model_out_dir = "trained_models/conv_net_v11_w51_h100/BalancedHmnChr14DSet/"
-    model_name = "conv_net_v11_state_dict"
+    dataset_csv_file = "artmiseqv3humanchr1430covMSATraining_1/train_labels.csv"
+    validationset_csv_file = "artmiseqv3humanchr1430covMSAValidation_1/train_labels.csv"
+    existing_model_path = "trained_models/conv_net_w451_h221_v1/LargerBalancedHmnChr14DSet/conv_net_v1_state_dict"
+
+    model_out_dir = "trained_models/conv_net_w451_h221_v1/LargerBalancedHmnChr14DSet/"
+    model_name = "conv_net_v1_state_dict"
+
+    # Create the output directory if it does not exist yet
+    if not os.path.exists(model_out_dir):
+        os.makedirs(model_out_dir)
 
     # -------------- Preparing the Model ---------------------------------------
-    model = conv_net_w51_h100_v11()
+    model = conv_net_w451_h221_v1()
+    if existing_model_path != "":
+        state_dict = torch.load(existing_model_path)
+        model.load_state_dict(state_dict)
     model.to(device)
 
 
@@ -81,14 +99,14 @@ if __name__ == "__main__":
     # -------------- Getting the Training and Validation Datasets --------------
     train_set = MSADataset(
         root_dir=os.path.join(dataset_folder, dataset_name),
-        annotation_file=os.path.join(dataset_folder, dataset_name, dataset_csv_file),
+        annotation_file=os.path.join(dataset_folder, dataset_csv_file),
         transform=transform
         )
     
     if validationset_name != "":
         validation_set = MSADataset(
             root_dir=os.path.join(dataset_folder, validationset_name),
-            annotation_file=os.path.join(dataset_folder, validationset_name, dataset_csv_file),
+            annotation_file=os.path.join(dataset_folder, validationset_csv_file),
             transform=transform
         )
     else:
@@ -149,7 +167,7 @@ if __name__ == "__main__":
         epoch_end_time = time.time()
 
         
-        if (epoch+1) % 10 == 0:
+        if (epoch+1) % 5 == 0:
             model.eval()
             with torch.no_grad():
                 for (val_data, val_targets) in tqdm(validation_loader, ascii=True, desc=f"Validation Epoch: {epoch}"):
@@ -180,6 +198,17 @@ if __name__ == "__main__":
 
         print(f'Loss at epoch {epoch} is {sum(losses)/len(losses)}. Training the epoch took {epoch_duration} seconds.')
         print(f"Validation loss is {val_loss_at_epoch}.")
+
+        # Save a checkpoint every epoch
+
+        # Save models state dict
+        torch.save(model.state_dict(), os.path.join(model_out_dir, model_name))
+
+        # Save the csv files with the training evaluation and meta data 
+        training_df = pd.DataFrame(training_df_data)
+        meta_df = pd.DataFrame(meta_df_data)
+        training_df.to_csv(os.path.join(model_out_dir, "training_data.csv"), index = False, header=True)
+        meta_df.to_csv(os.path.join(model_out_dir, "meta_data.csv"), index = False, header=True)
 
 
     end_time = time.time()
