@@ -18,24 +18,28 @@ from deepcare.models.conv_net import \
     conv_net_w51_h100_v9, \
     conv_net_w51_h100_v10, \
     conv_net_w51_h100_v11, \
-    conv_net_w250_h50_v1
+    conv_net_w250_h50_v1, \
+    conv_net_w224_h224_v1, \
+    conv_net_w224_h224_v2, \
+    conv_net_w224_h224_v3, \
+    conv_net_w451_h221_v1
 
 
 if __name__ == "__main__":
 
     device = ("cuda" if torch.cuda.is_available() else "cpu")
     
-    dataset_folder = "datasets/w51_h100/"
-    dataset_name = "artmiseqv3humanchr1430covMSA_defragmented"
+    dataset_folder = "datasets/w451_h221/artmiseqv3humanchr1430covMSAValidation_1"
+    dataset_name = "examples"
 
     model_path = "trained_models"
-    model_name = "conv_net_v11_w51_h100/BalancedHmnChr14DSet/conv_net_v11_state_dict"
-    model = conv_net_w51_h100_v11()
+    model_name = "conv_net_w451_h221_v1/LargerBalancedHmnChr14DSet/conv_net_v1_state_dict"
+    model = conv_net_w451_h221_v1()
 
     shuffle = False
-    batch_size = 2048
+    batch_size = 150
     pin_memory = True
-    num_workers = 40
+    num_workers = 60
     
     transform = transforms.Compose(
             [
@@ -46,7 +50,7 @@ if __name__ == "__main__":
 
     dataset = MSADataset(
         root_dir=os.path.join(dataset_folder, dataset_name),
-        annotation_file=os.path.join(dataset_folder, dataset_name, "train_labels.csv"),
+        annotation_file=os.path.join(dataset_folder, "train_labels.csv"),
         transform=transform
         )
 
