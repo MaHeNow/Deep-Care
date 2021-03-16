@@ -33,6 +33,26 @@ def read_reference_file(ref_file_path):
     return ref_reads
 
 
+def read_quality_scores(fastq_file, q_lookup):
+    """
+    Reads in a .fastq file and retrieves an integer quality score for every 
+    nucleotide in the file.
+    """
+
+    print("Reading the quality scores... ")
+    start = time.time()
+
+    with fastq.FastqReader(fastq_file) as reader:
+        quality_scores = np.array([read.quality for read in reader])
+    
+    end = time.time()
+    duration = end - start
+
+    print(f"Done. Reading the quality scores took {duration} seconds.")
+    
+    return quality_scores
+
+
 def read_msa_file(msa_file_path):
     
     print(f"Reading file {msa_file_path}")
@@ -82,10 +102,11 @@ def get_header_line_numbers(lines: np.ndarray) -> np.ndarray:
 
     return header_line_numbers
 
-def create_msas(lines, header_line_numbers, file_name, nuc_to_index):
+def create_msas(lines, header_line_numbers, quality_scores, q_lookup, file_name, nuc_to_index):
 
     # Arrays holding the MSAs and additoinal data
     msas = np.empty(header_line_numbers.size, dtype=object)
+    quality_matrices = np.empty(header_line_numbers.size, dtype=object)
     anchors = []
     anchors_in_msa = np.zeros(header_line_numbers.size, dtype=np.int)
     anchor_column_indices = np.zeros(header_line_numbers.size, dtype=np.int)
@@ -103,32 +124,43 @@ def create_msas(lines, header_line_numbers, file_name, nuc_to_index):
         anchor_column_index, anchor = msa_lines[anchor_in_msa].split(" ")
         
         # Create the MSA
-        msas[i] = create_msa(msa_lines, number_rows, number_columns, nuc_to_index)
+        msas[i], quality_matrices[i] = create_msa(msa_lines, quality_scores, q_lookup, number_rows, number_columns, nuc_to_index)
         anchors.append(anchor)
         anchors_in_msa[i] = anchor_in_msa
         anchors_in_file[i] = anchor_in_file
         anchor_column_indices[i] = int(anchor_column_index)
     
-    return msas, np.array(anchors), anchors_in_msa, anchor_column_indices, anchors_in_file
+    return msas, quality_matrices, np.array(anchors), anchors_in_msa, anchor_column_indices, anchors_in_file
 
 
-def create_msa(msa_lines, number_rows, number_columns, nuc_to_index):
+def create_msa(msa_lines, quality_scores, q_lookup, number_rows, number_columns, nuc_to_index):
 
     # Initialize the MSA
     msa_shape = (4, number_rows, number_columns)
+    quality_matrix_shape = (1, number_rows, number_columns)
+    
     msa = np.zeros(msa_shape, dtype=np.uint8)
+    quality_matrix = np.zeros(quality_matrix_shape, dtype=np.uint8)
 
     for i in range(msa_lines.size):
 
         # Fill the MSA into the one-hot encoded MSA
         line = msa_lines[i]
-        column_index, sequence = line.split(" ")
+        index, is_reversed, column_index, sequence = line.split(" ")
+        index = int(index)
+        is_reversed = bool(int(is_reversed))
         column_index = int(column_index)
+
+        quality_score = quality_scores[index]
+        quality_score = quality_score[::-1] if is_reversed else quality_score
+
         for j in range(len(sequence)):
             nucleotide = sequence[j]
-            msa[nuc_to_index[nucleotide], i, column_index+j] = 1
 
-    return msa
+            msa[nuc_to_index[nucleotide], i, column_index+j] = 1
+            quality_matrix[0, i, column_index+j] = q_lookup.index(quality_score[j]) / len(q_lookup)
+
+    return msa, quality_matrix
 
 
 def find_positions(msas, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file, ref_reads, allowed_bases, nuc_to_index, file_name):
@@ -188,18 +220,18 @@ def find_positions(msas, anchors, anchors_in_msa, anchor_column_indices, anchros
     return positions
 
 
-def generate_and_save_images(positions, msas, width, height, output_path, allowed_bases, nuc_to_color, file_name):
+def generate_and_save_images(positions, msas, quality_matrices, width, height, output_path, allowed_bases, nuc_to_color, file_name):
 
     for pos in tqdm(positions, desc=f"Creating images for file {file_name}"):
         msa_i, anch_msa_i, c_i, ref_i, im_i, cons = pos
-        new_msa = crop_msa_to_image(msas[msa_i], width, height, c_i, anch_msa_i, nuc_to_color)
+        new_msa = crop_msa_to_image(msas[msa_i], quality_matrices[msa_i], width, height, c_i, anch_msa_i, nuc_to_color)
         im = Image.fromarray(new_msa)
         annotation = "cons" if cons else "ncons"
         name = f"{allowed_bases[ref_i]}_{annotation}_{im_i}.png"
         im.save(os.path.join(output_path, name))
 
 
-def crop_msa_to_image(msa, new_width, new_height, new_center_x, new_center_y, nuc_to_color):
+def crop_msa_to_image(msa, quality_matrix, new_width, new_height, new_center_x, new_center_y, nuc_to_color):
 
     number_channels, number_rows, number_columns = msa.shape
     new_shape = (new_height, new_width, number_channels)
@@ -218,12 +250,13 @@ def crop_msa_to_image(msa, new_width, new_height, new_center_x, new_center_y, nu
                 if indices.size > 0:
                     base_index = indices[0]
                     color = nuc_to_color[base_index]
+                    color[3] = round(quality_matrix[0, y+offset_y, x+offset_x] * 255)
                     cropped_msa[y, x, :] = color
 
     return cropped_msa
 
 
-def generate_examples_from_file(msa_file_path, ref_reads, image_width, image_height, root_dir):
+def generate_examples_from_file(msa_file_path, ref_reads, quality_scores, image_width, image_height, q_lookup, root_dir):
 
     nuc_to_index = {
         "A": 0,
@@ -246,10 +279,10 @@ def generate_examples_from_file(msa_file_path, ref_reads, image_width, image_hei
     # -------------- Counting MSAs ---------------------------------------------
     header_line_numbers = get_header_line_numbers(lines)
     # TODO: the following line only exists for debugging purposes
-    #header_line_numbers = header_line_numbers[:1000]
+    header_line_numbers = header_line_numbers[:1000]
     
     # -------------- Creating MSAs ---------------------------------------------
-    msas, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file = create_msas(lines, header_line_numbers, file_name, nuc_to_index)
+    msas, quality_matrices, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file = create_msas(lines, header_line_numbers, quality_scores, q_lookup, file_name, nuc_to_index)
 
     # -------------- Finding Example Positions ---------------------------------
     positions = find_positions(msas, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file, ref_reads, allowed_bases, nuc_to_index, file_name)
@@ -258,16 +291,22 @@ def generate_examples_from_file(msa_file_path, ref_reads, image_width, image_hei
     out_dir = os.path.join(root_dir, f"{file_name}_{len(positions)}")
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-    generate_and_save_images(positions, msas, image_width, image_height, out_dir, allowed_bases, nuc_to_color, file_name)
+    generate_and_save_images(positions, msas, quality_matrices, image_width, image_height, out_dir, allowed_bases, nuc_to_color, file_name)
 
 
-def generate_examples(msa_file_paths, ref_fastq_file_path, image_width, image_height, out_dir, workers=10):
+def generate_examples(msa_file_paths, ref_fastq_file_path, fastq_file_path, image_width, image_height, out_dir, workers=10):
+
+    q_lookup = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
     # -------------- Reading the reference file --------------------------------
     ref_reads = read_reference_file(ref_fastq_file_path)
+
+    # -------------- Reading the quality scores --------------------------------
+    quality_scores = read_quality_scores(fastq_file_path, q_lookup)
+
     number_iterations = ceil(len(msa_file_paths) / workers)
 
     start = time.time()
@@ -280,7 +319,7 @@ def generate_examples(msa_file_paths, ref_fastq_file_path, image_width, image_he
         
         for j in range(i*workers, i*workers + num_files_this_it):
             path = msa_file_paths[j]
-            args = (path, ref_reads, image_width, image_height, out_dir)
+            args = (path, ref_reads, quality_scores, image_width, image_height, q_lookup, out_dir)
             p = multiprocessing.Process(target=generate_examples_from_file, args=args)
             p.start()
             processes.append(p)
