@@ -620,3 +620,386 @@ class ConvNetW250H50V3(nn.Module):
 
 def conv_net_w250_h50_v3():
     return ConvNetW250H50V3()
+
+
+class ConvNetW224H224V1(nn.Module):
+
+    def __init__(self):
+        super(ConvNetW224H224V1, self).__init__()
+
+        # Convolutional part of the network with batch-normalization inbetween
+        # the convolutional layers
+        self.convolution = nn.Sequential(
+            nn.Conv2d(in_channels=4, out_channels=48, kernel_size=(3,3)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(48),
+            nn.Conv2d(in_channels=48, out_channels=64, kernel_size=(4,4)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(4,4)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(128),
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(5,5)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(256),
+        )
+
+        # Fully connected dense part of the network with dropout inbetween
+        # the linear layers
+        self.dense = nn.Sequential(
+            nn.Linear(256 * 50 * 50, 500),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(500, 200),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(200, 84),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.2),
+            nn.Linear(84, 32),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.1),
+            nn.Linear(32, 4)
+        )
+
+
+    def forward(self, x):
+        # Apply convolutional network
+        x = self.convolution(x)
+
+        # Flatten the output of the convolutional layer for the linear layer
+        x = x.view(-1, 256 * 50 * 50)
+ 
+        # Apply the fully connected dense layer and classify the image
+        x = self.dense(x)
+        return x
+
+
+def conv_net_w224_h224_v1():
+    return ConvNetW224H224V1()
+
+
+class ConvNetW224H224V2(nn.Module):
+
+    def __init__(self):
+        super(ConvNetW224H224V2, self).__init__()
+
+        # Convolutional part of the network with batch-normalization inbetween
+        # the convolutional layers
+        self.convolution = nn.Sequential(
+            nn.Dropout(p=0.1),
+            nn.Conv2d(in_channels=4, out_channels=48, kernel_size=(3,3)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(48),
+            nn.Conv2d(in_channels=48, out_channels=64, kernel_size=(4,4)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(4,4)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(128),
+            #nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(5,5)),
+            #nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(256),
+        )
+
+        # Fully connected dense part of the network with dropout inbetween
+        # the linear layers
+        self.dense = nn.Sequential(
+            nn.Linear(128 * 25 * 25, 200),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            #nn.Linear(500, 200),
+            #nn.ReLU(inplace=True),
+            #nn.Dropout(p=0.5),
+            nn.Linear(200, 84),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.2),
+            nn.Linear(84, 32),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.1),
+            nn.Linear(32, 4)
+        )
+
+
+    def forward(self, x):
+        # Apply convolutional network
+        x = self.convolution(x)
+
+        # Flatten the output of the convolutional layer for the linear layer
+        x = x.view(-1, 128 * 25 * 25)
+ 
+        # Apply the fully connected dense layer and classify the image
+        x = self.dense(x)
+        return x
+
+
+def conv_net_w224_h224_v2():
+    return ConvNetW224H224V2()
+
+
+class ConvNetW224H224V3(nn.Module):
+
+    def __init__(self):
+        super(ConvNetW224H224V3, self).__init__()
+
+        # Convolutional part of the network with batch-normalization inbetween
+        # the convolutional layers
+        self.convolution = nn.Sequential(
+            nn.Dropout(p=0.05),
+            nn.Conv2d(in_channels=4, out_channels=48, kernel_size=(3,3)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(48),
+            nn.Conv2d(in_channels=48, out_channels=64, kernel_size=(4,4)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(4,4)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(128),
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(5,5)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(256),
+        )
+
+        # Fully connected dense part of the network with dropout inbetween
+        # the linear layers
+        self.dense = nn.Sequential(
+            nn.Linear(256 * 10 * 10, 500),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(500, 200),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(200, 84),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(84, 32),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.4),
+            nn.Linear(32, 4)
+        )
+
+
+    def forward(self, x):
+        # Apply convolutional network
+        x = self.convolution(x)
+
+        # Flatten the output of the convolutional layer for the linear layer
+        x = x.view(-1, 256 * 10 * 10)
+ 
+        # Apply the fully connected dense layer and classify the image
+        x = self.dense(x)
+        return x
+
+
+def conv_net_w224_h224_v3():
+    return ConvNetW224H224V3()
+
+
+class ConvNetW224H224V4(nn.Module):
+
+    def __init__(self):
+        super(ConvNetW224H224V4, self).__init__()
+
+        # Convolutional part of the network with batch-normalization inbetween
+        # the convolutional layers
+        self.convolution = nn.Sequential(
+            nn.Dropout(p=0.1),
+            nn.Conv2d(in_channels=4, out_channels=64, kernel_size=(3,3)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+            nn.Conv2d(in_channels=64, out_channels=96, kernel_size=(4,4)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(96),
+            nn.Conv2d(in_channels=96, out_channels=128, kernel_size=(4,4)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(128),
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(5,5)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(256),
+        )
+
+        # Fully connected dense part of the network with dropout inbetween
+        # the linear layers
+        self.dense = nn.Sequential(
+            nn.Dropout(p=0.5),
+            nn.Linear(256 * 50 * 50, 1000),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.6),
+            nn.Linear(1000, 500),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.6),
+            nn.Linear(500, 200),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(200, 32),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.4),
+            nn.Linear(32, 4)
+        )
+
+
+    def forward(self, x):
+        # Apply convolutional network
+        x = self.convolution(x)
+
+        # Flatten the output of the convolutional layer for the linear layer
+        x = x.view(-1, 256 * 50 * 50)
+ 
+        # Apply the fully connected dense layer and classify the image
+        x = self.dense(x)
+        return x
+
+
+def conv_net_w224_h224_v4():
+    return ConvNetW224H224V4()
+
+
+class ConvNetW224H224V5(nn.Module):
+
+    def __init__(self):
+        super(ConvNetW224H224V5, self).__init__()
+
+        # Convolutional part of the network with batch-normalization inbetween
+        # the convolutional layers
+        self.convolution = nn.Sequential(
+            nn.Conv2d(in_channels=4, out_channels=48, kernel_size=(3,3)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(48),
+            nn.Conv2d(in_channels=48, out_channels=64, kernel_size=(4,4)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(4,4)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(128),
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(5,5)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(256),
+        )
+
+        # Fully connected dense part of the network with dropout inbetween
+        # the linear layers
+        self.dense = nn.Sequential(
+            nn.Linear(256 * 50 * 50, 500),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(500, 200),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(200, 84),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.4),
+            nn.Linear(84, 32),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.2),
+            nn.Linear(32, 4)
+        )
+
+
+    def forward(self, x):
+        # Apply convolutional network
+        x = self.convolution(x)
+
+        # Flatten the output of the convolutional layer for the linear layer
+        x = x.view(-1, 256 * 50 * 50)
+ 
+        # Apply the fully connected dense layer and classify the image
+        x = self.dense(x)
+        return x
+
+
+def conv_net_w224_h224_v5():
+    return ConvNetW224H224V5()
+
+
+class ConvNetW224H224V6(nn.Module):
+
+    def __init__(self):
+        super(ConvNetW224H224V6, self).__init__()
+
+        # Convolutional part of the network with batch-normalization inbetween
+        # the convolutional layers
+        self.convolution = nn.Sequential(
+            nn.Conv2d(in_channels=4, out_channels=48, kernel_size=(3,3)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(48),
+            nn.Conv2d(in_channels=48, out_channels=64, kernel_size=(3,3)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(4,4)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(4,4)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(128),
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(5,5)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(256),
+            
+        )
+
+        # Fully connected dense part of the network with dropout inbetween
+        # the linear layers
+        self.dense = nn.Sequential(
+            nn.Linear(256 * 10 * 10, 500),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.6),
+            nn.Linear(500, 350),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.6),
+            nn.Linear(350, 200),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(200, 84),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.4),
+            nn.Linear(84, 32),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.2),
+            nn.Linear(32, 4)
+        )
+
+
+    def forward(self, x):
+        # Apply convolutional network
+        x = self.convolution(x)
+
+        # Flatten the output of the convolutional layer for the linear layer
+        x = x.view(-1, 256 * 10 * 10)
+ 
+        # Apply the fully connected dense layer and classify the image
+        x = self.dense(x)
+        return x
+
+
+def conv_net_w224_h224_v6():
+    return ConvNetW224H224V6()
+
+
+class ConvNetW451H221V1(nn.Module):
+
+    def __init__(self):
+        super(ConvNetW451H221V1, self).__init__()
+
+        # Convolutional part of the network with batch-normalization inbetween
+        # the convolutional layers
+        # Convolutional part of the network with batch-normalization inbetween
+        # the convolutional layers
+        self.convolution = nn.Sequential(
+            nn.Conv2d(in_channels=4, out_channels=48, kernel_size=(3,3)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(48),
+            nn.Conv2d(in_channels=48, out_channels=64, kernel_size=(4,4)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(4,4)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(128),
+            nn.Conv2d(in_channels=128, out_channels=200, kernel_size=(5,5)),
+            nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(200),
+        )
+
+        # Fully connected dense part of the network with dropout inbetween
+        # the linear layers
+        self.dense = nn.Sequential(
+            nn.Linear(200 * 49 * 107, 500),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(500, 200),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(200, 84),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.4),
+            nn.Linear(84, 32),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.3),
+            nn.Linear(32, 4)
+        )
+
+
+    def forward(self, x):
+        # Apply convolutional network
+        x = self.convolution(x)
+
+        # Flatten the output of the convolutional layer for the linear layer
+        x = x.view(-1, 200 * 49 * 107)
+ 
+        # Apply the fully connected dense layer and classify the image
+        x = self.dense(x)
+        return x
+
+
+def conv_net_w451_h221_v1():
+    return ConvNetW451H221V1()

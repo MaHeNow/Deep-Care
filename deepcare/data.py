@@ -1,82 +1,68 @@
 import os
-import random
 import time
-import glob
 
 import torch
 from torch.utils.data import Dataset
 from nucleus.io import fastq
 import multiprocessing
-from multiprocessing import Pool
 from itertools import repeat
 import pandas as pd
 from PIL import Image
 
-from deepcare.utils.msa import create_msa, crop_msa, get_middle_base, nuc_to_index, save_msa_as_image
+import numpy as np
+from tqdm import tqdm
+
+from math import ceil
+from glob import glob
+from random import shuffle
 
 
-def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_path, image_height, image_width, out_dir, max_num_examples=None, workers=1, human_readable=False, verbose=False):
-
-    allowed_bases = "ACGT"
-    target_num_examples = -1
-    if max_num_examples != None:
-        target_num_examples = max_num_examples//(2*len(allowed_bases))
-    consenus_examples = {i : [] for i in allowed_bases}
-    non_consenus_examples = {i : [] for i in allowed_bases}
-
-    num_processes = min(multiprocessing.cpu_count()-1, workers) or 1
-    if verbose:
-        print(f"The data will be saved using {num_processes} parallel processes.")
+def read_reference_file(ref_file_path):
     
-    # -------------- Reading the reference file --------------------------------
-    if verbose:
-        print("Reading the reference file... ")
+    print("Reading the reference file... ")
     start = time.time()
     
-    with fastq.FastqReader(ref_fastq_file_path) as reader:
-        ref_reads = [read for read in reader]
+    with fastq.FastqReader(ref_file_path) as reader:
+        ref_reads = np.array([read.sequence for read in reader])
     
     end = time.time()
     duration = end - start
 
-    if verbose:
-        print(f"Done. Reading the refernce file took {duration} seconds.")
+    print(f"Done. Reading the refernce file took {duration} seconds.")
+
+    return ref_reads
 
 
-    # -------------- Reading the MSA file --------------------------------------
-    if verbose:
-        print(f"Reading file {msa_file_path}")
+def read_msa_file(msa_file_path):
+    
+    print(f"Reading file {msa_file_path}")
     start = time.time()
 
     file_ = open(msa_file_path, "r")
-    lines = [line.replace('\n', '') for line in file_]
+    lines = np.array([line.replace('\n', '') for line in file_])
     
     end = time.time()
     duration = end - start
 
-    if verbose:
-        print(f"Done. Reading the MSA file took {duration} seconds.")
+    print(f"Done. Reading the MSA file took {duration} seconds.")
 
-    
-    # -------------- Counting MSAs ---------------------------------------------
-    if verbose:
-        print("Counting the MSAs...")
+    return lines
+
+
+def get_header_line_numbers(lines: np.ndarray) -> np.ndarray:
+
+    print("Counting the MSAs...")
     start = time.time()
     
     reading = True
     header_line_number = 0
     header_line_numbers = []
-    million_counter = 0
 
     while reading:
 
         if header_line_number >= len(lines):
             reading = False
             continue
-
-        if header_line_number >= million_counter*1000000:
-            print(f"Currently at line {header_line_number}")
-            million_counter += 1
 
         number_rows, number_columns, anchor_in_msa, anchor_in_file, high_quality = [int(i) for i in lines[header_line_number].split(" ")]
         
@@ -86,186 +72,223 @@ def generate_center_base_train_images_parallel(msa_file_path, ref_fastq_file_pat
         
         header_line_number += number_rows + 1
 
+    header_line_numbers = np.array(header_line_numbers)
+
     end = time.time()
     duration = end - start
 
-    if verbose:
-        print("Done")
-        print(f"There were {len(header_line_numbers)} many MSAs found. Counting the MSAs took {duration} seconds") 
+    print("Done")
+    print(f"There were {len(header_line_numbers)} many MSAs found. Counting the MSAs took {duration} seconds")
 
+    return header_line_numbers
 
-    # -------------- Generating the examples -----------------------------------
-    if verbose:
-        print("Now generating examples...")
+def create_msas(lines, header_line_numbers, file_name, nuc_to_index):
 
-    target_examples_reached = False
-    reading = True
-    start = time.time()
+    # Arrays holding the MSAs and additoinal data
+    msas = np.empty(header_line_numbers.size, dtype=object)
+    anchors = []
+    anchors_in_msa = np.zeros(header_line_numbers.size, dtype=np.int)
+    anchor_column_indices = np.zeros(header_line_numbers.size, dtype=np.int)
+    anchors_in_file = np.zeros(header_line_numbers.size, dtype=np.int)
 
-    for header_line_number in header_line_numbers:
+    for i in tqdm(range(header_line_numbers.size), desc=f"Creating MSAs for file {file_name}"):
 
-        target_examples_reached = min(
-                min([len(item) for key, item in consenus_examples.items()]),
-                min([len(item) for key, item in non_consenus_examples.items()])
-            ) == target_num_examples
-
-        if target_examples_reached:
-            reading = False
-            if verbose:
-                print("Target number examples reached.")
-            break
-
-        # Get relavant information of the MSA from one of many heades in the
-        # file encoding the MSAs
-        number_rows, number_columns, anchor_in_msa, anchor_in_file, high_quality = [int(i) for i in lines[header_line_number].split(" ")]
-
-        start_height = header_line_number+1
-        end_height = header_line_number+number_rows+1
-
-        msa_lines = lines[start_height:end_height]
-        anchor_column_index, anchor_sequence = msa_lines[anchor_in_msa].split(" ")
-
-        # Get the reference sequence
-        reference = ref_reads[anchor_in_file].sequence
+        # Get the current header line number
+        header_line_number = header_line_numbers[i]
+        # Retrieve info about the MSA from the header line
+        number_rows, number_columns, anchor_in_msa, anchor_in_file, _ = [int(j) for j in lines[header_line_number].split(" ")]
+        start = header_line_number+1
+        end = start+number_rows
+        msa_lines = lines[start:end]
+        anchor_column_index, anchor = msa_lines[anchor_in_msa].split(" ")
         
-        # Create a pytorch tensor encoding the msa from the text file
-        msa = create_msa(msa_lines, number_rows, number_columns)
+        # Create the MSA
+        msas[i] = create_msa(msa_lines, number_rows, number_columns, nuc_to_index)
+        anchors.append(anchor)
+        anchors_in_msa[i] = anchor_in_msa
+        anchors_in_file[i] = anchor_in_file
+        anchor_column_indices[i] = int(anchor_column_index)
+    
+    return msas, np.array(anchors), anchors_in_msa, anchor_column_indices, anchors_in_file
 
-        # Go over entire anchor sequence and compare it with the reference
-        for i, (b, rb) in enumerate(zip(anchor_sequence, reference)):
 
-            if not rb in allowed_bases:
-                continue
+def create_msa(msa_lines, number_rows, number_columns, nuc_to_index):
 
-            center_index = i + int(anchor_column_index)
-            # TODO: Der Konesnus wird hier nicht von dem geslicten MSA betrachtet, das könnte man noch verbessern
-            column = msa[:, :, center_index]
-            base_counts = torch.sum(column, dim=1)
-            consensus_bases = torch.where(base_counts == torch.max(base_counts))[0]
-            nuc_index = nuc_to_index[b] 
-            if nuc_index in consensus_bases:
-                continue
+    # Initialize the MSA
+    msa_shape = (4, number_rows, number_columns)
+    msa = np.zeros(msa_shape, dtype=np.uint8)
 
-            label = rb
-            label_is_consensus = nuc_to_index[label] in consensus_bases
+    for i in range(msa_lines.size):
 
-            if len(consenus_examples[rb]) >= target_num_examples and label_is_consensus and target_num_examples > 0:
-                continue
-            if len(non_consenus_examples[rb]) >= target_num_examples and not label_is_consensus and target_num_examples > 0:
+        # Fill the MSA into the one-hot encoded MSA
+        line = msa_lines[i]
+        column_index, sequence = line.split(" ")
+        column_index = int(column_index)
+        for j in range(len(sequence)):
+            nucleotide = sequence[j]
+            msa[nuc_to_index[nucleotide], i, column_index+j] = 1
+
+    return msa
+
+
+def find_positions(msas, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file, ref_reads, allowed_bases, nuc_to_index, file_name):
+
+    # Create Datastructure for holding positions
+    consensus_examples = [[] for b in allowed_bases]
+    non_consensus_examples = [[] for b in allowed_bases]
+
+    for i in tqdm(range(msas.size), desc=f"Finding Positions in file {file_name}"):
+
+        # Get MSA data
+        msa = msas[i]
+        anchor = anchors[i]
+        anchor_in_msa = anchors_in_msa[i]
+        anchor_column_index = anchor_column_indices[i]
+        reference = ref_reads[anchros_in_file[i]]
+
+        for j in range(len(reference)):
+            
+            # Compare every position in the anchor with the reference sequence
+            base = anchor[j]
+            ref_base = reference[j]
+
+            if not ref_base in allowed_bases:
                 continue
             
-            # Crop the MSA round the currently centered base
-            cropped_msa = crop_msa(msa, image_width, image_height, center_index+1, anchor_in_msa)
-
-            if label_is_consensus:
-                consenus_examples[label].append((cropped_msa, len(consenus_examples[label])))
+            center_index = j + anchor_column_index
+            column = msa[:,:,center_index]
+            base_counts = np.sum(column, axis=1)
+            consensus_bases = np.where(base_counts == np.max(base_counts))[0]
+            base_index = nuc_to_index[base]
+            ref_base_index = nuc_to_index[ref_base]
+            
+            # Ignore cases where the base in the anchor is the consensus
+            if base_index in consensus_bases:
+                continue
+            
+            if ref_base_index in consensus_bases:
+                consensus_examples[ref_base_index].append([i, anchor_in_msa, center_index, ref_base_index, len(consensus_examples[ref_base_index]), 1])
             else:
-                non_consenus_examples[label].append((cropped_msa, len(non_consenus_examples[label])))
+                non_consensus_examples[ref_base_index].append([i, anchor_in_msa, center_index, ref_base_index, len(non_consensus_examples[ref_base_index]), 0])
+        
+    min_count_examples = min(
+            min([len(base_list) for base_list in consensus_examples]),
+            min([len(base_list) for base_list in non_consensus_examples])
+        )
     
-    if reading:
-        print("Reached end of MSA file.")
+    positions = []
+    for base_list in consensus_examples:
+        shuffle(base_list)
+        positions += base_list[:min_count_examples]
+    for base_list in non_consensus_examples:
+        positions += base_list[:min_count_examples]
 
-    end = time.time()
-    duration = end - start
+    positions = np.array(positions) 
 
-    if verbose:
-        print(f"Done. Creating the examples took {duration} seconds.")
+    return positions
 
+
+def generate_and_save_images(positions, msas, width, height, output_path, allowed_bases, nuc_to_color, file_name):
+
+    for pos in tqdm(positions, desc=f"Creating images for file {file_name}"):
+        msa_i, anch_msa_i, c_i, ref_i, im_i, cons = pos
+        new_msa = crop_msa_to_image(msas[msa_i], width, height, c_i, anch_msa_i, nuc_to_color)
+        im = Image.fromarray(new_msa)
+        annotation = "cons" if cons else "ncons"
+        name = f"{allowed_bases[ref_i]}_{annotation}_{im_i}.png"
+        im.save(os.path.join(output_path, name))
+
+
+def crop_msa_to_image(msa, new_width, new_height, new_center_x, new_center_y, nuc_to_color):
+
+    number_channels, number_rows, number_columns = msa.shape
+    new_shape = (new_height, new_width, number_channels)
+    cropped_msa = np.zeros(new_shape, dtype=np.uint8)
+
+    offset_x = int(new_center_x - new_width/2)
+    offset_y = int(new_center_y - new_height/2)
+
+    for x in range(new_width):
+        for y in range(new_height):
+            point_x = x+offset_x
+            point_y = y+offset_y
+
+            if 0 <= point_x < number_columns and 0 <= point_y < number_rows:
+                indices = msa[:, y+offset_y, x+offset_x].nonzero()[0]
+                if indices.size > 0:
+                    base_index = indices[0]
+                    color = nuc_to_color[base_index]
+                    cropped_msa[y, x, :] = color
+
+    return cropped_msa
+
+
+def generate_examples_from_file(msa_file_path, ref_reads, image_width, image_height, root_dir):
+
+    nuc_to_index = {
+        "A": 0,
+        "C": 1,
+        "G": 2,
+        "T": 3
+    }
+    nuc_to_color = {
+          0 : np.array([  0,   0, 255, 255], dtype=np.uint8), # A becomes blue
+          1 : np.array([255,   0,   0, 255], dtype=np.uint8), # C becomes red
+          2 : np.array([  0, 255,   0, 255], dtype=np.uint8), # G becomes green
+          3 : np.array([255, 255,   0, 255], dtype=np.uint8)  # T becomes yellow
+    }
+    allowed_bases = np.array(["A", "C", "G", "T"])
+    file_name = os.path.basename(msa_file_path)
+
+    # -------------- Reading the MSA file --------------------------------------
+    lines = read_msa_file(msa_file_path)
     
-    # -------------- Create the output folder for the datset -------------------
-    # determine the minimum number of examples
-    min_num_examples = min(
-        min([len(item) for key, item in consenus_examples.items()]),
-        min([len(item) for key, item in non_consenus_examples.items()])
-    )
-    for base in allowed_bases:
-        consenus_examples[base] = consenus_examples[base][:min_num_examples]
-        non_consenus_examples[base] = non_consenus_examples[base][:min_num_examples]
+    # -------------- Counting MSAs ---------------------------------------------
+    header_line_numbers = get_header_line_numbers(lines)
+    # TODO: the following line only exists for debugging purposes
+    #header_line_numbers = header_line_numbers[:1000]
+    
+    # -------------- Creating MSAs ---------------------------------------------
+    msas, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file = create_msas(lines, header_line_numbers, file_name, nuc_to_index)
 
-    out_dir = f"{out_dir}_n{8*min_num_examples}"
+    # -------------- Finding Example Positions ---------------------------------
+    positions = find_positions(msas, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file, ref_reads, allowed_bases, nuc_to_index, file_name)
+
+    # -------------- Generating and Savign Images ------------------------------
+    out_dir = os.path.join(root_dir, f"{file_name}_{len(positions)}")
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-    if verbose:
-        print(f"Number examples per class: {min_num_examples}.")
+    generate_and_save_images(positions, msas, image_width, image_height, out_dir, allowed_bases, nuc_to_color, file_name)
 
 
-    # -------------- Saving examples -------------------------------------------
-    if verbose:
-        print("Saving examples.")
+def generate_examples(msa_file_paths, ref_fastq_file_path, image_width, image_height, out_dir, workers=10):
+
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    # -------------- Reading the reference file --------------------------------
+    ref_reads = read_reference_file(ref_fastq_file_path)
+    number_iterations = ceil(len(msa_file_paths) / workers)
+
     start = time.time()
-    chunk_length =  2*min_num_examples//num_processes
-    if verbose:
-        print(f"Saving chunk size per process: {chunk_length}")
 
-    for base in allowed_bases:
-
+    for i in range(number_iterations):
         processes = []
 
-        start = time.time()
-
-        for i in range(0, min_num_examples, chunk_length):
-            examples_chunk = consenus_examples[base][i:i+chunk_length]
-            args = (base, examples_chunk, 'cons', out_dir, human_readable)
-            p = multiprocessing.Process(target=save_images, args=args)
+        num_files_left = len(msa_file_paths) - i*workers
+        num_files_this_it = workers if num_files_left >= workers else num_files_left
+        
+        for j in range(i*workers, i*workers + num_files_this_it):
+            path = msa_file_paths[j]
+            args = (path, ref_reads, image_width, image_height, out_dir)
+            p = multiprocessing.Process(target=generate_examples_from_file, args=args)
             p.start()
             processes.append(p)
         
-
-        for i in range(0, min_num_examples, chunk_length):
-            examples_chunk = non_consenus_examples[base][i:i+chunk_length]
-            args = (base, examples_chunk, 'non_cons', out_dir, human_readable)
-            p = multiprocessing.Process(target=save_images, args=args)
-            p.start()
-            processes.append(p)
-
         for p in processes:
             p.join()
-        
-        if verbose:
-            print(f"Done saving the {base}s.")
     
-    end = time.time()
-    duration = end - start
-
-    if verbose:
-        print(f"Done. Savin took {duration} seconds.")
-
-    
-    # -------------- Creating the annotations file -----------------------------
-    # After all examples are generated and saved, create the training csv file
-    if verbose:
-        print("Now creating the annotations file...")
-    start = time.time()
-    
-    # Prepare the dataframe which will be exported as a csv for indexing
-    train_df = pd.DataFrame(columns=["img_name","label"])
-    names = list()
-    labels = list()
-
-    for b in allowed_bases:
-        files = glob.glob(os.path.join(out_dir, f"{b.upper()}*"))
-        for file_ in files:
-            names.append(os.path.basename(file_))
-            labels.append(nuc_to_index[b])
-
-    train_df["img_name"] = names
-    train_df["label"] = labels
-
-    # Save the csv        
-    train_df.to_csv (os.path.join(out_dir, "train_labels.csv"), index = False, header=True)
-
-    end = time.time()
-    duration = end - start
-
-    if verbose:
-        print(f"Done. Creating the annotation file took {duration} seconds.")
-
-
-def save_images(label, examples, name_annotation, out_dir, human_readable):
-
-    for (msa, index) in examples:
-        file_name = f"{label}_{name_annotation}_{index}.png"
-        save_msa_as_image(msa, file_name, out_dir, human_readable=human_readable)
+    print(f"Completely done after {time.time()-start} seconds")
 
 
 class MSADataset(Dataset):
