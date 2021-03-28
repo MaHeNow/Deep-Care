@@ -1,10 +1,5 @@
 /.vscode
 **/__pycache__
 *.png
-*csv
-/datasets
-/old_datasets
-/old_trained_models
-/trained_models
+*.csv
 playground.py
-*.pt
