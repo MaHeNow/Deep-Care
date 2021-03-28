@@ -19,9 +19,11 @@ def check_accuracy(loader, model, device):
             num_correct += (predictions == y).sum()
             num_samples += predictions.size(0)
         
-        print(f'Got {num_correct} / {num_samples} with accuracy {float(num_correct)/float(num_samples)*100:.2f}') 
+        print(f'Got {num_correct} / {num_samples} with accuracy {float(num_correct)/float(num_samples)*100}') 
     
     model.train()
+
+    return float(num_correct)/float(num_samples)*100
 
 
 def check_accuracy_on_classes(loader, model, device, classes=['A', 'C', 'G', 'T']):
