@@ -71,8 +71,10 @@ if __name__ == "__main__":
 
     random.seed(1)
     folder_paths = (
-          glob.glob("datasets/w451_h221/humanchr1430cov_2/*") 
-        + glob.glob("datasets/w451_h221/humanchr1430cov_3/*") 
+          glob.glob("/home/mnowak/data/quality_datasets/w221_h221/humanchr1430cov_3/*") 
+        + glob.glob("/home/mnowak/data/quality_datasets/w221_h221/humanchr1430cov_2/*")
+        + glob.glob("/home/mnowak/data/quality_datasets/w221_h221/humanchr1430cov_4/*")
+        + glob.glob("/home/mnowak/data/quality_datasets/w221_h221/humanchr1430cov_5/*") 
     )
     shuffle(folder_paths)
     split_part = 0.8
@@ -80,8 +82,8 @@ if __name__ == "__main__":
     traning_folder_paths = folder_paths[:trainin_parts]
     validation_folder_paths = folder_paths[trainin_parts:]
 
-    result_training_folder_path = "datasets/w451_h221/artmiseqv3humanchr1430covMSATraining_1"
-    result_validation_folder_path = "datasets/w451_h221/artmiseqv3humanchr1430covMSAValidation_1"
+    result_training_folder_path = "/home/mnowak/data/quality_datasets/w221_h221/artmiseqv3humanchr1430covMSATraining"
+    result_validation_folder_path = "/home/mnowak/data/quality_datasets/w221_h221/artmiseqv3humanchr1430covMSAValidation"
     generate_dataset(traning_folder_paths, result_training_folder_path)
     generate_dataset(validation_folder_paths, result_validation_folder_path)
 
