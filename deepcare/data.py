@@ -124,7 +124,7 @@ def create_msas(lines, header_line_numbers, quality_scores, q_lookup, file_name,
         anchor_column_index, anchor = msa_lines[anchor_in_msa].split(" ")
         
         # Create the MSA
-        msas[i], quality_matrices[i] = create_msa(msa_lines, quality_scores, q_lookup, number_rows, number_columns, nuc_to_index)
+        msas[i], quality_matrices[i] = create_msa(msa_lines, quality_scores, q_lookup, anchor_in_msa, number_rows, number_columns, nuc_to_index)
         anchors.append(anchor)
         anchors_in_msa[i] = anchor_in_msa
         anchors_in_file[i] = anchor_in_file
@@ -133,22 +133,28 @@ def create_msas(lines, header_line_numbers, quality_scores, q_lookup, file_name,
     return msas, quality_matrices, np.array(anchors), anchors_in_msa, anchor_column_indices, anchors_in_file
 
 
-def create_msa(msa_lines, quality_scores, q_lookup, number_rows, number_columns, nuc_to_index):
+def create_msa(msa_lines, quality_scores, q_lookup, anchor_id, number_rows, number_columns, nuc_to_index):
 
     # Initialize the MSA
     msa_shape = (4, number_rows, number_columns)
     quality_matrix_shape = (1, number_rows, number_columns)
     
     msa = np.zeros(msa_shape, dtype=np.uint8)
-    quality_matrix = np.zeros(quality_matrix_shape, dtype=np.uint8)
+    quality_matrix = np.zeros(quality_matrix_shape, dtype=np.float)
 
     for i in range(msa_lines.size):
 
         # Fill the MSA into the one-hot encoded MSA
         line = msa_lines[i]
-        index, is_reversed, column_index, sequence = line.split(" ")
-        index = int(index)
-        is_reversed = bool(int(is_reversed))
+        splitted = line.split(" ")
+        if len(splitted) == 2:
+            column_index, sequence = splitted
+            index = anchor_id
+            is_reversed = False
+        else:
+            index, is_reversed, column_index, sequence = splitted
+            index = int(index)
+            is_reversed = bool(int(is_reversed))
         column_index = int(column_index)
 
         quality_score = quality_scores[index]
@@ -158,7 +164,8 @@ def create_msa(msa_lines, quality_scores, q_lookup, number_rows, number_columns,
             nucleotide = sequence[j]
 
             msa[nuc_to_index[nucleotide], i, column_index+j] = 1
-            quality_matrix[0, i, column_index+j] = q_lookup.index(quality_score[j]) / len(q_lookup)
+            quality = q_lookup.index(quality_score[j]) / len(q_lookup)
+            quality_matrix[0, i, column_index+j] = quality
 
     return msa, quality_matrix
 
@@ -246,11 +253,12 @@ def crop_msa_to_image(msa, quality_matrix, new_width, new_height, new_center_x, 
             point_y = y+offset_y
 
             if 0 <= point_x < number_columns and 0 <= point_y < number_rows:
-                indices = msa[:, y+offset_y, x+offset_x].nonzero()[0]
+                indices = msa[:, point_y, point_x].nonzero()[0]
                 if indices.size > 0:
                     base_index = indices[0]
                     color = nuc_to_color[base_index]
-                    color[3] = round(quality_matrix[0, y+offset_y, x+offset_x] * 255)
+                    quality = quality_matrix[0, point_y, point_x] * 255
+                    color[3] = round(quality)
                     cropped_msa[y, x, :] = color
 
     return cropped_msa
@@ -279,7 +287,7 @@ def generate_examples_from_file(msa_file_path, ref_reads, quality_scores, image_
     # -------------- Counting MSAs ---------------------------------------------
     header_line_numbers = get_header_line_numbers(lines)
     # TODO: the following line only exists for debugging purposes
-    header_line_numbers = header_line_numbers[:1000]
+    # header_line_numbers = header_line_numbers[:1000]
     
     # -------------- Creating MSAs ---------------------------------------------
     msas, quality_matrices, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file = create_msas(lines, header_line_numbers, quality_scores, q_lookup, file_name, nuc_to_index)
