@@ -10,26 +10,7 @@ from tqdm import tqdm
 import pandas as pd
 
 from deepcare.data import MSADataset
-from deepcare.models.conv_net import \
-    conv_net_w51_h100_v1, \
-    conv_net_w51_h100_v3, \
-    conv_net_w51_h100_v4, \
-    conv_net_w51_h100_v5, \
-    conv_net_w51_h100_v6, \
-    conv_net_w51_h100_v7, \
-    conv_net_w51_h100_v8, \
-    conv_net_w51_h100_v9, \
-    conv_net_w51_h100_v10, \
-    conv_net_w51_h100_v11, \
-    conv_net_w250_h50_v1, \
-    conv_net_w250_h50_v3, \
-    conv_net_w224_h224_v1, \
-    conv_net_w224_h224_v2, \
-    conv_net_w224_h224_v3, \
-    conv_net_w224_h224_v4, \
-    conv_net_w224_h224_v5, \
-    conv_net_w224_h224_v6, \
-    conv_net_w451_h221_v1
+from deepcare.models.conv_net import *
 
 from deepcare.utils.accuracy import check_accuracy, check_accuracy_on_classes
 
@@ -43,32 +24,32 @@ if __name__ == "__main__":
 
 
     # -------------- Hyperparameters -------------------------------------------
-    num_epochs = 5
+    num_epochs = 30
     learning_rate = 0.00001
-    batch_size = 150
+    batch_size = 5000
     shuffle = True
     pin_memory = True
     num_workers = 60
 
 
     # -------------- File structure --------------------------------------------
-    dataset_folder = "datasets/w451_h221"
-    dataset_name = "artmiseqv3humanchr1430covMSATraining_1/examples"
-    validationset_name = "artmiseqv3humanchr1430covMSAValidation_1/examples"
-    validation_split = 0.20
-    dataset_csv_file = "artmiseqv3humanchr1430covMSATraining_1/train_labels.csv"
-    validationset_csv_file = "artmiseqv3humanchr1430covMSAValidation_1/train_labels.csv"
-    existing_model_path = "trained_models/conv_net_w451_h221_v1/LargerBalancedHmnChr14DSet/conv_net_v1_state_dict"
+    dataset_folder = "/home/mnowak/data/fresh_start/qualityful_balanced_datasets/w5_h180/"
+    dataset_name = "artmiseqv3humanchr1430covMSATraining_2_5/examples"
+    validationset_name = "artmiseqv3humanchr1430covMSAValidation_2_5/examples"
+    dataset_csv_file = "artmiseqv3humanchr1430covMSATraining_2_5/train_labels.csv"
+    validationset_csv_file = "artmiseqv3humanchr1430covMSAValidation_2_5/train_labels.csv"
+    existing_model_path = ""
 
-    model_out_dir = "trained_models/conv_net_w451_h221_v1/LargerBalancedHmnChr14DSet/"
-    model_name = "conv_net_v1_state_dict"
+    model_out_dir = "/home/mnowak/data/trained_models/conv_net_w5_h180_v1/HmnChr1430CovMiSeqQualityBalanced/"
+    model_name = "conv_net_w5_h180_v1_hmrchr1430CovMiSeqQualityBalanced_state_dict"
+    script_module_name = "conv_net_w5_h180_v1_hmrchr1430CovMiSeqQualityBalanced_script_module.pt"
 
     # Create the output directory if it does not exist yet
     if not os.path.exists(model_out_dir):
         os.makedirs(model_out_dir)
 
     # -------------- Preparing the Model ---------------------------------------
-    model = conv_net_w451_h221_v1()
+    model = conv_net_w5_h180_v1()
     if existing_model_path != "":
         state_dict = torch.load(existing_model_path)
         model.load_state_dict(state_dict)
@@ -102,17 +83,11 @@ if __name__ == "__main__":
         annotation_file=os.path.join(dataset_folder, dataset_csv_file),
         transform=transform
         )
-    
-    if validationset_name != "":
-        validation_set = MSADataset(
-            root_dir=os.path.join(dataset_folder, validationset_name),
-            annotation_file=os.path.join(dataset_folder, validationset_csv_file),
-            transform=transform
+    validation_set = MSADataset(
+        root_dir=os.path.join(dataset_folder, validationset_name),
+        annotation_file=os.path.join(dataset_folder, validationset_csv_file),
+        transform=transform
         )
-    else:
-        train_set_size = int(train_set.__len__() * (1-validation_split))
-        validation_set_size = train_set.__len__() - train_set_size
-        train_set, validation_set = torch.utils.data.random_split(train_set,[train_set_size, validation_set_size])
     meta_df_data["Category"].append("Number Training Samples")
     meta_df_data["Value"].append(train_set.__len__())
     meta_df_data["Category"].append("Number Validation Samples")
@@ -167,7 +142,7 @@ if __name__ == "__main__":
         epoch_end_time = time.time()
 
         
-        if (epoch+1) % 5 == 0:
+        if (epoch+1) % 2 == 0:
             model.eval()
             with torch.no_grad():
                 for (val_data, val_targets) in tqdm(validation_loader, ascii=True, desc=f"Validation Epoch: {epoch}"):
@@ -219,10 +194,15 @@ if __name__ == "__main__":
     print(f"Finished training. The process took {duration} seconds.")    
 
     print("Checking accuracy on Training Set")
-    check_accuracy(train_loader, model, device)
+    train_accuracy = check_accuracy(train_loader, model, device)
 
     print("Checking accuracy on Validation Set")
-    check_accuracy(validation_loader, model, device)
+    validation_accuracy = check_accuracy(validation_loader, model, device)
+
+    meta_df_data["Category"].append("Training Accuracy")
+    meta_df_data["Value"].append(train_accuracy)
+    meta_df_data["Category"].append("Validation Accuracy")
+    meta_df_data["Value"].append(validation_accuracy)
 
     # Create the output directory if it does not exist yet
     if not os.path.exists(model_out_dir):
@@ -238,7 +218,8 @@ if __name__ == "__main__":
     meta_df.to_csv(os.path.join(model_out_dir, "meta_data.csv"), index = False, header=True)
 
     # Save the model for later usage with the LibTorch library
+    model.to("cpu")
     model.eval()
 
     script_module = torch.jit.script(model)
-    script_module.save(os.path.join(model_out_dir, "script_module.pt"))
+    script_module.save(os.path.join(model_out_dir, script_module_name))
