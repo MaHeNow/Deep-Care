@@ -170,7 +170,7 @@ def create_msa(msa_lines, quality_scores, q_lookup, anchor_id, number_rows, numb
     return msa, quality_matrix
 
 
-def find_positions(msas, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file, ref_reads, allowed_bases, nuc_to_index, file_name):
+def find_positions(msas, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file, ref_reads, allowed_bases, nuc_to_index, file_name, extra_balanced=True):
 
     # Create Datastructure for holding positions
     consensus_examples = [[] for b in allowed_bases]
@@ -205,47 +205,54 @@ def find_positions(msas, anchors, anchors_in_msa, anchor_column_indices, anchros
             if base_index in consensus_bases:
                 continue
             
-            if ref_base_index in consensus_bases:
-                consensus_examples[ref_base_index].append([i, anchor_in_msa, center_index, ref_base_index, len(consensus_examples[ref_base_index]), 1])
+            if extra_balanced:
+                if ref_base_index in consensus_bases:
+                    consensus_examples[ref_base_index].append([i, anchor_in_msa, center_index, ref_base_index, len(consensus_examples[ref_base_index]), 1])
+                else:
+                    non_consensus_examples[ref_base_index].append([i, anchor_in_msa, center_index, ref_base_index, len(non_consensus_examples[ref_base_index]), 0])
             else:
-                non_consensus_examples[ref_base_index].append([i, anchor_in_msa, center_index, ref_base_index, len(non_consensus_examples[ref_base_index]), 0])
-        
-    min_count_examples = min(
-            min([len(base_list) for base_list in consensus_examples]),
-            min([len(base_list) for base_list in non_consensus_examples])
-        )
-    
+                consensus_examples[ref_base_index].append([i, anchor_in_msa, center_index, ref_base_index, len(consensus_examples[ref_base_index]), 1])
+
+    if extra_balanced:
+        min_count_examples = min(
+                min([len(base_list) for base_list in consensus_examples]),
+                min([len(base_list) for base_list in non_consensus_examples])
+            )
+    else:
+        min_count_examples = min([len(base_list) for base_list in consensus_examples])
+
     positions = []
     for base_list in consensus_examples:
         shuffle(base_list)
         positions += base_list[:min_count_examples]
-    for base_list in non_consensus_examples:
-        positions += base_list[:min_count_examples]
+    if extra_balanced:
+        for base_list in non_consensus_examples:
+            positions += base_list[:min_count_examples]
 
     positions = np.array(positions) 
 
     return positions
 
 
-def generate_and_save_images(positions, msas, quality_matrices, width, height, output_path, allowed_bases, nuc_to_color, file_name):
+def generate_and_save_images(positions, msas, quality_matrices, width, height, output_path, allowed_bases, nuc_to_color, file_name, use_quality=True):
 
     for pos in tqdm(positions, desc=f"Creating images for file {file_name}"):
         msa_i, anch_msa_i, c_i, ref_i, im_i, cons = pos
-        new_msa = crop_msa_to_image(msas[msa_i], quality_matrices[msa_i], width, height, c_i, anch_msa_i, nuc_to_color)
+        new_msa = crop_msa_to_image(msas[msa_i], quality_matrices[msa_i], width, height, c_i, anch_msa_i, nuc_to_color, use_quality)
         im = Image.fromarray(new_msa)
         annotation = "cons" if cons else "ncons"
         name = f"{allowed_bases[ref_i]}_{annotation}_{im_i}.png"
         im.save(os.path.join(output_path, name))
 
 
-def crop_msa_to_image(msa, quality_matrix, new_width, new_height, new_center_x, new_center_y, nuc_to_color):
+def crop_msa_to_image(msa, quality_matrix, new_width, new_height, new_center_x, new_center_y, nuc_to_color, use_quality=True):
 
     number_channels, number_rows, number_columns = msa.shape
     new_shape = (new_height, new_width, number_channels)
     cropped_msa = np.zeros(new_shape, dtype=np.uint8)
 
-    offset_x = int(new_center_x - new_width/2)
-    offset_y = int(new_center_y - new_height/2)
+    offset_x = int(new_center_x - new_width//2)
+    offset_y = int(new_center_y - new_height//2)
 
     for x in range(new_width):
         for y in range(new_height):
@@ -258,13 +265,13 @@ def crop_msa_to_image(msa, quality_matrix, new_width, new_height, new_center_x, 
                     base_index = indices[0]
                     color = nuc_to_color[base_index]
                     quality = quality_matrix[0, point_y, point_x] * 255
-                    color[3] = round(quality)
+                    color[3] = round(quality) if use_quality else color[3]
                     cropped_msa[y, x, :] = color
 
     return cropped_msa
 
 
-def generate_examples_from_file(msa_file_path, ref_reads, quality_scores, image_width, image_height, q_lookup, root_dir):
+def generate_examples_from_file(msa_file_path, ref_reads, quality_scores, image_width, image_height, q_lookup, root_dir, use_quality=True, extra_balancing=True, human_readable=True):
 
     nuc_to_index = {
         "A": 0,
@@ -272,12 +279,20 @@ def generate_examples_from_file(msa_file_path, ref_reads, quality_scores, image_
         "G": 2,
         "T": 3
     }
-    nuc_to_color = {
-          0 : np.array([  0,   0, 255, 255], dtype=np.uint8), # A becomes blue
-          1 : np.array([255,   0,   0, 255], dtype=np.uint8), # C becomes red
-          2 : np.array([  0, 255,   0, 255], dtype=np.uint8), # G becomes green
-          3 : np.array([255, 255,   0, 255], dtype=np.uint8)  # T becomes yellow
-    }
+    if human_readable:
+        nuc_to_color = {
+            0 : np.array([  0,   0, 255, 255], dtype=np.uint8), # A becomes blue
+            1 : np.array([255,   0,   0, 255], dtype=np.uint8), # C becomes red
+            2 : np.array([  0, 255,   0, 255], dtype=np.uint8), # G becomes green
+            3 : np.array([255, 255,   0, 255], dtype=np.uint8)  # T becomes yellow
+        }
+    else:
+        nuc_to_color = {
+            0 : np.array([255, 0, 0, 0], dtype=np.uint8),
+            1 : np.array([0, 255, 0, 0], dtype=np.uint8),
+            2 : np.array([0, 0, 255, 0], dtype=np.uint8),
+            3 : np.array([0, 0, 0, 255], dtype=np.uint8) 
+        }
     allowed_bases = np.array(["A", "C", "G", "T"])
     file_name = os.path.basename(msa_file_path)
 
@@ -293,16 +308,16 @@ def generate_examples_from_file(msa_file_path, ref_reads, quality_scores, image_
     msas, quality_matrices, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file = create_msas(lines, header_line_numbers, quality_scores, q_lookup, file_name, nuc_to_index)
 
     # -------------- Finding Example Positions ---------------------------------
-    positions = find_positions(msas, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file, ref_reads, allowed_bases, nuc_to_index, file_name)
+    positions = find_positions(msas, anchors, anchors_in_msa, anchor_column_indices, anchros_in_file, ref_reads, allowed_bases, nuc_to_index, file_name, extra_balancing)
 
     # -------------- Generating and Savign Images ------------------------------
     out_dir = os.path.join(root_dir, f"{file_name}_{len(positions)}")
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-    generate_and_save_images(positions, msas, quality_matrices, image_width, image_height, out_dir, allowed_bases, nuc_to_color, file_name)
+    generate_and_save_images(positions, msas, quality_matrices, image_width, image_height, out_dir, allowed_bases, nuc_to_color, file_name, use_quality)
 
 
-def generate_examples(msa_file_paths, ref_fastq_file_path, fastq_file_path, image_width, image_height, out_dir, workers=10):
+def generate_examples(msa_file_paths, ref_fastq_file_path, fastq_file_path, image_width, image_height, out_dir, use_quality=True, extra_balancing=True, human_readable=True,workers=10):
 
     q_lookup = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 
@@ -327,7 +342,7 @@ def generate_examples(msa_file_paths, ref_fastq_file_path, fastq_file_path, imag
         
         for j in range(i*workers, i*workers + num_files_this_it):
             path = msa_file_paths[j]
-            args = (path, ref_reads, quality_scores, image_width, image_height, q_lookup, out_dir)
+            args = (path, ref_reads, quality_scores, image_width, image_height, q_lookup, out_dir, use_quality, extra_balancing, human_readable)
             p = multiprocessing.Process(target=generate_examples_from_file, args=args)
             p.start()
             processes.append(p)
