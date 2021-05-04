@@ -24,31 +24,32 @@ if __name__ == "__main__":
 
 
     # -------------- Hyperparameters -------------------------------------------
-    num_epochs = 15
+    num_epochs = 30
     learning_rate = 0.00001
-    batch_size = 1024
+    batch_size = 5000
     shuffle = True
     pin_memory = True
     num_workers = 60
 
 
     # -------------- File structure --------------------------------------------
-    dataset_folder = "/home/mnowak/data/quality_datasets/w221_h221"
-    dataset_name = "artmiseqv3humanchr1430covMSATraining/examples"
-    validationset_name = "artmiseqv3humanchr1430covMSAValidation/examples"
-    dataset_csv_file = "artmiseqv3humanchr1430covMSATraining/train_labels.csv"
-    validationset_csv_file = "artmiseqv3humanchr1430covMSAValidation/train_labels.csv"
+    dataset_folder = "/home/mnowak/data/fresh_start/qualityful_balanced_datasets/w5_h180/"
+    dataset_name = "artmiseqv3humanchr1430covMSATraining_2_5/examples"
+    validationset_name = "artmiseqv3humanchr1430covMSAValidation_2_5/examples"
+    dataset_csv_file = "artmiseqv3humanchr1430covMSATraining_2_5/train_labels.csv"
+    validationset_csv_file = "artmiseqv3humanchr1430covMSAValidation_2_5/train_labels.csv"
     existing_model_path = ""
 
-    model_out_dir = "/home/mnowak/data/trained_models/conv_net_w221_h221_v6/BalancedHmnChr14DSetRetrained3/"
-    model_name = "state_dict"
+    model_out_dir = "/home/mnowak/data/trained_models/conv_net_w5_h180_v1/HmnChr1430CovMiSeqQualityBalanced/"
+    model_name = "conv_net_w5_h180_v1_hmrchr1430CovMiSeqQualityBalanced_state_dict"
+    script_module_name = "conv_net_w5_h180_v1_hmrchr1430CovMiSeqQualityBalanced_script_module.pt"
 
     # Create the output directory if it does not exist yet
     if not os.path.exists(model_out_dir):
         os.makedirs(model_out_dir)
 
     # -------------- Preparing the Model ---------------------------------------
-    model = conv_net_w221_h221_v6()
+    model = conv_net_w5_h180_v1()
     if existing_model_path != "":
         state_dict = torch.load(existing_model_path)
         model.load_state_dict(state_dict)
@@ -221,4 +222,4 @@ if __name__ == "__main__":
     model.eval()
 
     script_module = torch.jit.script(model)
-    script_module.save(os.path.join(model_out_dir, "script_module.pt"))
+    script_module.save(os.path.join(model_out_dir, script_module_name))
