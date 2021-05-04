@@ -1,5 +1,7 @@
 import os
 
+from glob import glob
+
 import torch
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
@@ -12,15 +14,14 @@ if __name__ == "__main__":
 
     device = ("cuda" if torch.cuda.is_available() else "cpu")
 
-    dataset_folder = "/home/mnowak/data/quality_datasets/w221_h221/artmiseqv3humanchr1430covMSAValidation"
+    dataset_folder = "/home/mnowak/data/quality_datasets/w221_h221/artmiseqv3humanchr1430covMSATraining"
     dataset_name = "examples"
 
-    model_path = "/home/mnowak/data/trained_models"
-    model_name = "conv_net_w221_h221_v6/BalancedHmnChr14DSetRetrained3/conv_net_v6_state_dict"
-    model = conv_net_w221_h221_v6()
+    model_path = "/home/mnowak/data/trained_models/conv_net_w221_h221_v4/BalancedHmnChr14DSet/conv_net_v4_state_dict"
+    model = conv_net_w221_h221_v4()
 
     shuffle = True
-    batch_size = 500
+    batch_size = 256
     pin_memory = True
     num_workers = 60
 
@@ -39,7 +40,7 @@ if __name__ == "__main__":
 
     loader = DataLoader(dataset=dataset, shuffle=shuffle, batch_size=batch_size,num_workers=num_workers,pin_memory=pin_memory)
 
-    state_dict = torch.load(os.path.join(model_path, model_name))
+    state_dict = torch.load(model_path)
     model.load_state_dict(state_dict)
     model.to(device)
 
