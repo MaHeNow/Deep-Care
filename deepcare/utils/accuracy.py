@@ -1,5 +1,6 @@
 import time
 import os
+from tqdm import tqdm
 
 import torch
 
@@ -10,7 +11,11 @@ def check_accuracy(loader, model, device):
     model.eval()
     
     with torch.no_grad():
-        for x, y in loader:
+        i = 0
+        for x, y in tqdm(loader, ascii=True, desc="Testing accuracy"):
+            if i == 1500:
+                break
+
             x = x.to(device=device)
             y = y.to(device=device)
             
@@ -18,6 +23,8 @@ def check_accuracy(loader, model, device):
             _, predictions = scores.max(1)
             num_correct += (predictions == y).sum()
             num_samples += predictions.size(0)
+
+            i += 1
         
         print(f'Got {num_correct} / {num_samples} with accuracy {float(num_correct)/float(num_samples)*100}') 
     
