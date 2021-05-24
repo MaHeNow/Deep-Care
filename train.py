@@ -33,23 +33,23 @@ if __name__ == "__main__":
 
 
     # -------------- File structure --------------------------------------------
-    dataset_folder = "/home/mnowak/data/fresh_start/qualityful_balanced_datasets/w5_h180/"
+    dataset_folder = "/home/mnowak/data/fresh_start/binary_quality_balanced_datasets/w1_h151"
     dataset_name = "artmiseqv3humanchr1430covMSATraining_2_5/examples"
     validationset_name = "artmiseqv3humanchr1430covMSAValidation_2_5/examples"
     dataset_csv_file = "artmiseqv3humanchr1430covMSATraining_2_5/train_labels.csv"
     validationset_csv_file = "artmiseqv3humanchr1430covMSAValidation_2_5/train_labels.csv"
     existing_model_path = ""
 
-    model_out_dir = "/home/mnowak/data/trained_models/conv_net_w5_h180_v1/HmnChr1430CovMiSeqQualityBalanced/"
-    model_name = "conv_net_w5_h180_v1_hmrchr1430CovMiSeqQualityBalanced_state_dict"
-    script_module_name = "conv_net_w5_h180_v1_hmrchr1430CovMiSeqQualityBalanced_script_module.pt"
+    model_out_dir = "/home/mnowak/data/trained_models/conv_net_w1_h151_v1/HmnChr1430CovMiSeqQualityBalanced/"
+    model_name = "conv_net_w1_h151_v1_hmrchr1430CovMiSeqQualityBalanced_state_dict"
+    script_module_name = "conv_net_w1_h151_v1_hmrchr1430CovMiSeqQualityBalanced_script_module.pt"
 
     # Create the output directory if it does not exist yet
     if not os.path.exists(model_out_dir):
         os.makedirs(model_out_dir)
 
     # -------------- Preparing the Model ---------------------------------------
-    model = conv_net_w5_h180_v1()
+    model = conv_net_w1_h151_v1()
     if existing_model_path != "":
         state_dict = torch.load(existing_model_path)
         model.load_state_dict(state_dict)
@@ -142,7 +142,7 @@ if __name__ == "__main__":
         epoch_end_time = time.time()
 
         
-        if (epoch+1) % 2 == 0:
+        if (epoch+1) % 4 == 0:
             model.eval()
             with torch.no_grad():
                 for (val_data, val_targets) in tqdm(validation_loader, ascii=True, desc=f"Validation Epoch: {epoch}"):
