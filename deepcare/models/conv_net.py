@@ -150,7 +150,6 @@ def conv_net_w51_h100_v3():
 
 
 class ConvNetW51H100V4(nn.Module):
-    # 96% accuracy on unseen data
 
     def __init__(self):
         super(ConvNetW51H100V4, self).__init__()
@@ -207,9 +206,11 @@ class ConvNetW51H100V5(nn.Module):
             nn.Linear(16 * 19 * 10, 120),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.3),
+
             nn.Linear(120, 84),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.2),
+
             nn.Linear(84, 4)
         )
 
@@ -471,12 +472,16 @@ class ConvNetW51H100V11(nn.Module):
         self.convolution = nn.Sequential(
             nn.Conv2d(in_channels=4, out_channels=48, kernel_size=(3,3)),
             nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(48),
+
             nn.Conv2d(in_channels=48, out_channels=64, kernel_size=(4,4)),
             nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+
             nn.Conv2d(in_channels=64, out_channels=256, kernel_size=(4,4)),
             nn.ReLU(inplace=True),  nn.BatchNorm2d(256),
+
             nn.Conv2d(in_channels=256, out_channels=384, kernel_size=(4,4)),
             nn.ReLU(inplace=True),  nn.BatchNorm2d(384),
+
             nn.Conv2d(in_channels=384, out_channels=384, kernel_size=(5,5)),
             nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(384),
         )
@@ -487,15 +492,19 @@ class ConvNetW51H100V11(nn.Module):
             nn.Linear(384 * 18 * 5, 500),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5),
+
             nn.Linear(500, 200),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5),
+
             nn.Linear(200, 84),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.2),
+
             nn.Linear(84, 32),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.1),
+
             nn.Linear(32, 4)
         )
 
@@ -708,7 +717,6 @@ def conv_net_w21_h200_v1():
 
 
 class ConvNetW250H50V1(nn.Module):
-    # 96% Accuracy on unseen data
 
     def __init__(self):
         super(ConvNetW250H50V1, self).__init__()
@@ -746,7 +754,6 @@ def conv_net_w250_h50_v1():
 
 
 class ConvNetW250H50V2(nn.Module):
-    # 92% Accuracy on unseen data
 
     def __init__(self):
         super(ConvNetW250H50V2, self).__init__()
@@ -784,7 +791,6 @@ def conv_net_w250_h50_v2():
 
 
 class ConvNetW250H50V3(nn.Module):
-    # Accuracy von 96.88 auf unseen data
 
     def __init__(self):
         super(ConvNetW250H50V3, self).__init__()
@@ -1202,10 +1208,13 @@ class ConvNetW451H221V1(nn.Module):
         self.convolution = nn.Sequential(
             nn.Conv2d(in_channels=4, out_channels=48, kernel_size=(3,3)),
             nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(48),
+            
             nn.Conv2d(in_channels=48, out_channels=64, kernel_size=(4,4)),
             nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+            
             nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(4,4)),
             nn.ReLU(inplace=True),  nn.BatchNorm2d(128),
+            
             nn.Conv2d(in_channels=128, out_channels=200, kernel_size=(5,5)),
             nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(200),
         )
@@ -1216,15 +1225,19 @@ class ConvNetW451H221V1(nn.Module):
             nn.Linear(200 * 49 * 107, 500),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5),
+
             nn.Linear(500, 200),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5),
+
             nn.Linear(200, 84),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.4),
+
             nn.Linear(84, 32),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.3),
+            
             nn.Linear(32, 4)
         )
 
@@ -1363,11 +1376,6 @@ def conv_net_w221_h221_v2():
 
 class ConvNetW221H221V3(nn.Module):
 
-    # Checking accuracy on Training Set
-    # Got 1214828 / 1215576 with accuracy 99.94
-    # Checking accuracy on Validation Set   
-    # Got 272268 / 305248 with accuracy 89.20
-
     def __init__(self):
         super(ConvNetW221H221V3, self).__init__()
 
@@ -1421,11 +1429,6 @@ def conv_net_w221_h221_v3():
 
 class ConvNetW221H221V4(nn.Module):
 
-    # Checking accuracy on Training Set
-    # Got 1212568 / 1215576 with accuracy 99.75
-    # Checking accuracy on Validation Set
-    # Got 270324 / 305248 with accuracy 88.56
-
     def __init__(self):
         super(ConvNetW221H221V4, self).__init__()
 
@@ -1472,11 +1475,6 @@ def conv_net_w221_h221_v4():
 
 class ConvNetW221H221V5(nn.Module):
 
-    # Checking accuracy on Training Set
-    # 
-    # Checking accuracy on Validation Set
-    # 
-
     def __init__(self):
         super(ConvNetW221H221V5, self).__init__()
 
@@ -1485,13 +1483,9 @@ class ConvNetW221H221V5(nn.Module):
         self.convolution = nn.Sequential(
             nn.Conv2d(in_channels=4, out_channels=24, kernel_size=(8,3)),
             nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(24),
+
             nn.Conv2d(in_channels=24, out_channels=48, kernel_size=(9,4)),
             nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(48),
-            #nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(9,4)),
-            #nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(128),
-            
-            #nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(5,5)),
-            #nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(256),
         )
 
         # Fully connected dense part of the network with dropout inbetween
@@ -1500,15 +1494,11 @@ class ConvNetW221H221V5(nn.Module):
             nn.Linear(48 * 49 * 53, 500),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.7),
+
             nn.Linear(500, 32),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.7),
-            #nn.Linear(200, 32),
-            #nn.ReLU(inplace=True),
-            #nn.Dropout(p=0.5),
-            #nn.Linear(84, 32),
-            #nn.ReLU(inplace=True),
-            #nn.Dropout(p=0.3),
+
             nn.Linear(32, 4)
         )
 
@@ -1531,43 +1521,26 @@ def conv_net_w221_h221_v5():
 
 class ConvNetW221H221V6(nn.Module):
 
-    # Checking accuracy on Training Set
-    # 
-    # Checking accuracy on Validation Set
-    # 
-
     def __init__(self):
         super(ConvNetW221H221V6, self).__init__()
 
-        # Convolutional part of the network with batch-normalization inbetween
-        # the convolutional layers
         self.convolution = nn.Sequential(
             nn.Conv2d(in_channels=4, out_channels=24, kernel_size=(9,3)),
             nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(24),
+
             nn.Conv2d(in_channels=24, out_channels=48, kernel_size=(12,4)),
             nn.MaxPool2d(3, 3), nn.ReLU(inplace=True),  nn.BatchNorm2d(48),
-            #nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(9,4)),
-            #nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(128),
-            
-            #nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(5,5)),
-            #nn.MaxPool2d(2, 2), nn.ReLU(inplace=True),  nn.BatchNorm2d(256),
         )
 
-        # Fully connected dense part of the network with dropout inbetween
-        # the linear layers
         self.dense = nn.Sequential(
             nn.Linear(48 * 31 * 35, 500),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.7),
+
             nn.Linear(500, 32),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.7),
-            #nn.Linear(200, 32),
-            #nn.ReLU(inplace=True),
-            #nn.Dropout(p=0.5),
-            #nn.Linear(84, 32),
-            #nn.ReLU(inplace=True),
-            #nn.Dropout(p=0.3),
+
             nn.Linear(32, 4)
         )
 
@@ -1647,3 +1620,64 @@ class ConvNetW5H180V1(nn.Module):
 
 def conv_net_w5_h180_v1():
     return ConvNetW5H180V1()
+
+
+class ConvNetW1H151V1(nn.Module):
+
+    def __init__(self):
+        super(ConvNetW1H151V1, self).__init__()
+
+        # Convolutional part of the network with batch-normalization inbetween
+        # the convolutional layers
+        self.convolution = nn.Sequential(
+            nn.Conv2d(in_channels=4, out_channels=64, kernel_size=(3,1)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(9,1)),
+            nn.ReLU(inplace=True),  nn.BatchNorm2d(64),
+            
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(15,1)),
+            nn.MaxPool2d((4, 1), stride=(4, 1)), nn.ReLU(inplace=True),  nn.BatchNorm2d(128),
+        )
+
+        # Fully connected dense part of the network with dropout inbetween
+        # the linear layers
+        self.dense = nn.Sequential(
+            nn.Linear(128 * 31 * 1, 500),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(500),
+            nn.Dropout(p=0.5),
+
+            nn.Linear(500, 200),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(200),
+            nn.Dropout(p=0.5),
+
+            nn.Linear(200, 100),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(100),
+            nn.Dropout(p=0.5),
+
+            nn.Linear(100, 32),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(32),
+            nn.Dropout(p=0.5),
+
+            nn.Linear(32, 2)
+        )
+
+
+    def forward(self, x):
+        # Apply convolutional network
+        x = self.convolution(x)
+
+        # Flatten the output of the convolutional layer for the linear layer
+        x = x.view(-1, 128 * 31 * 1)
+ 
+        # Apply the fully connected dense layer and classify the image
+        x = self.dense(x)
+        return x
+
+
+def conv_net_w1_h151_v1():
+    return ConvNetW1H151V1()

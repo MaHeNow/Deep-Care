@@ -211,7 +211,10 @@ def find_positions(msas, anchors, anchors_in_msa, anchor_column_indices, anchros
                 else:
                     non_consensus_examples[ref_base_index].append([i, anchor_in_msa, center_index, ref_base_index, len(non_consensus_examples[ref_base_index]), 0])
             else:
-                consensus_examples[ref_base_index].append([i, anchor_in_msa, center_index, ref_base_index, len(consensus_examples[ref_base_index]), 1])
+                if ref_base_index in consensus_bases:
+                    consensus_examples[ref_base_index].append([i, anchor_in_msa, center_index, ref_base_index, len(consensus_examples[ref_base_index]), 1])
+                else:
+                    consensus_examples[ref_base_index].append([i, anchor_in_msa, center_index, ref_base_index, len(consensus_examples[ref_base_index]), 0])
 
     if extra_balanced:
         min_count_examples = min(
